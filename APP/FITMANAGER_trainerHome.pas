@@ -25,18 +25,25 @@ type
   private
     FTrainerId: Integer;
     FFirstRequestId: Integer;
+    FMenuButton: TButton;
+    FMenuPanel: TRectangle;
+    FLogoutButton: TButton;
     function BuildPath(const APath, AFileName: string): string;
+    procedure BuildLogoutMenu;
     function FindAssetFile(const AFileName: string): string;
-    procedure AddMemberCard(const ALeft, ATop: Single; const AName, AGoal: string;
-      AMemberId: Integer);
+    procedure AddMemberCard(const ALeft, ATop: Single; const AName, APlanTitle,
+      AGoal: string; AMemberId: Integer);
     procedure MemberCardClick(Sender: TObject);
     procedure LoadMemberCards;
     procedure LoadTemplateBackground;
     procedure LoadTrainerContext;
+    procedure LogoutClick(Sender: TObject);
     procedure RefreshRequests;
+    procedure ToggleMenuClick(Sender: TObject);
     procedure UpdateFirstRequestStatus(const AStatus: string);
   public
     constructor Create(AOwner: TComponent); override;
+    procedure RefreshDashboard;
   end;
 
 implementation
@@ -50,6 +57,8 @@ constructor TFrmTrainerHome.Create(AOwner: TComponent);
 begin
   inherited;
   LoadTemplateBackground;
+  BuildLogoutMenu;
+  btnBack.Visible := False;
   try
     DB.InitializeDatabase;
     LoadTrainerContext;
@@ -60,18 +69,53 @@ begin
   end;
 end;
 
+procedure TFrmTrainerHome.BuildLogoutMenu;
+begin
+  FMenuButton := TButton.Create(Self);
+  FMenuButton.Parent := Self;
+  FMenuButton.Position.X := 10;
+  FMenuButton.Position.Y := 8;
+  FMenuButton.Width := 34;
+  FMenuButton.Height := 30;
+  FMenuButton.Text := #9776;
+  FMenuButton.OnClick := ToggleMenuClick;
+  FMenuButton.BringToFront;
+
+  FMenuPanel := TRectangle.Create(Self);
+  FMenuPanel.Parent := Self;
+  FMenuPanel.Position.X := 10;
+  FMenuPanel.Position.Y := 42;
+  FMenuPanel.Width := 118;
+  FMenuPanel.Height := 42;
+  FMenuPanel.XRadius := 6;
+  FMenuPanel.YRadius := 6;
+  FMenuPanel.Fill.Color := $FFFFFFFF;
+  FMenuPanel.Stroke.Color := $FF444444;
+  FMenuPanel.Visible := False;
+  FMenuPanel.BringToFront;
+
+  FLogoutButton := TButton.Create(FMenuPanel);
+  FLogoutButton.Parent := FMenuPanel;
+  FLogoutButton.Position.X := 6;
+  FLogoutButton.Position.Y := 6;
+  FLogoutButton.Width := 106;
+  FLogoutButton.Height := 30;
+  FLogoutButton.Text := 'Logout';
+  FLogoutButton.OnClick := LogoutClick;
+end;
+
 procedure TFrmTrainerHome.AddMemberCard(const ALeft, ATop: Single;
-  const AName, AGoal: string; AMemberId: Integer);
+  const AName, APlanTitle, AGoal: string; AMemberId: Integer);
 var
   Card: TRectangle;
-  NameLabel, GoalLabel: TLabel;
+  NameLabel, PlanLabel, GoalLabel: TLabel;
 begin
   Card := TRectangle.Create(lyMembersContent);
   Card.Parent := lyMembersContent;
   Card.Position.X := ALeft;
   Card.Position.Y := ATop;
-  Card.Width := 266;
-  Card.Height := 92;
+  Card.Width := 272;
+  Card.Height := 156;
   Card.XRadius := 8;
   Card.YRadius := 8;
   Card.Fill.Color := $FFFFE8CF;
@@ -85,21 +129,41 @@ begin
   NameLabel.HitTest := False;
   NameLabel.Position.X := 10;
   NameLabel.Position.Y := 8;
-  NameLabel.Width := 246;
-  NameLabel.Height := 24;
+  NameLabel.Width := 252;
+  NameLabel.Height := 26;
   NameLabel.Text := AName;
-  NameLabel.TextSettings.Font.Size := 7;
+  NameLabel.TextSettings.Font.Size := 12;
+  NameLabel.TextSettings.Font.Style := [TFontStyle.fsBold];
+
+  PlanLabel := TLabel.Create(Card);
+  PlanLabel.Parent := Card;
+  PlanLabel.HitTest := False;
+  PlanLabel.Position.X := 10;
+  PlanLabel.Position.Y := 42;
+  PlanLabel.Width := 252;
+  PlanLabel.Height := 28;
+  PlanLabel.Text := 'Plan: ' + APlanTitle;
+  PlanLabel.WordWrap := True;
+  PlanLabel.TextSettings.Font.Size := 9;
 
   GoalLabel := TLabel.Create(Card);
   GoalLabel.Parent := Card;
   GoalLabel.HitTest := False;
   GoalLabel.Position.X := 10;
-  GoalLabel.Position.Y := 34;
-  GoalLabel.Width := 246;
-  GoalLabel.Height := 50;
+  GoalLabel.Position.Y := 78;
+  GoalLabel.Width := 252;
+  GoalLabel.Height := 70;
   GoalLabel.Text := 'Cilj: ' + AGoal;
   GoalLabel.WordWrap := True;
-  GoalLabel.TextSettings.Font.Size := 5;
+  GoalLabel.TextSettings.Font.Size := 9;
+end;
+
+procedure TFrmTrainerHome.LogoutClick(Sender: TObject);
+begin
+  DB.ResetCurrentUser;
+  if Assigned(Application.MainForm) then
+    Application.MainForm.Show;
+  Close;
 end;
 
 procedure TFrmTrainerHome.MemberCardClick(Sender: TObject);
@@ -169,10 +233,20 @@ begin
   FTrainerId := 0;
 
   DB.FDQuery1.Close;
-  DB.FDQuery1.SQL.Text :=
-    'SELECT trainer_id, first_name, last_name FROM trainer ' +
-    'WHERE status = :status ORDER BY trainer_id LIMIT 1';
-  DB.FDQuery1.ParamByName('status').AsString := 'Aktivan';
+  if DB.CurrentTrainerId > 0 then
+  begin
+    DB.FDQuery1.SQL.Text :=
+      'SELECT trainer_id, first_name, last_name FROM trainer ' +
+      'WHERE trainer_id = :trainer_id LIMIT 1';
+    DB.FDQuery1.ParamByName('trainer_id').AsInteger := DB.CurrentTrainerId;
+  end
+  else
+  begin
+    DB.FDQuery1.SQL.Text :=
+      'SELECT trainer_id, first_name, last_name FROM trainer ' +
+      'WHERE status = :status ORDER BY trainer_id LIMIT 1';
+    DB.FDQuery1.ParamByName('status').AsString := 'Aktivan';
+  end;
   DB.FDQuery1.Open;
   if not DB.FDQuery1.IsEmpty then
   begin
@@ -186,21 +260,32 @@ begin
   LoadMemberCards;
 end;
 
+procedure TFrmTrainerHome.RefreshDashboard;
+begin
+  try
+    LoadTrainerContext;
+    RefreshRequests;
+  except
+    on E: Exception do
+      lblRequests.Text := 'Greska pri osvezavanju: ' + E.Message;
+  end;
+end;
+
 procedure TFrmTrainerHome.LoadMemberCards;
 const
-  CCardHeight = 92;
-  CRowGap = 12;
+  CCardHeight = 156;
+  CRowGap = 6;
 var
   Index: Integer;
   CardLeft, CardTop: Single;
-  FullName, Goal: string;
+  FullName, PlanTitle, Goal: string;
 begin
   while lyMembersContent.ChildrenCount > 0 do
     lyMembersContent.Children[0].Free;
 
   DB.FDQuery1.Close;
   DB.FDQuery1.SQL.Text :=
-    'SELECT m.member_id, m.first_name, m.last_name, p.goal ' +
+    'SELECT m.member_id, m.first_name, m.last_name, p.title AS plan_title, p.goal ' +
     'FROM member m ' +
     'JOIN plan_training p ON p.member_id = m.member_id ' +
     'WHERE p.trainer_id = :trainer_id ' +
@@ -222,7 +307,11 @@ begin
     if Goal = '' then
       Goal := 'Cilj nije unet.';
 
-    AddMemberCard(CardLeft, CardTop, FullName, Goal,
+    PlanTitle := DB.FDQuery1.FieldByName('plan_title').AsString;
+    if PlanTitle = '' then
+      PlanTitle := 'Plan nije definisan';
+
+    AddMemberCard(CardLeft, CardTop, FullName, PlanTitle, Goal,
       DB.FDQuery1.FieldByName('member_id').AsInteger);
 
     Inc(Index);
@@ -275,6 +364,13 @@ begin
   if Lines = '' then
     Lines := 'Trenutno nema novih zahteva.';
   lblRequests.Text := Lines;
+end;
+
+procedure TFrmTrainerHome.ToggleMenuClick(Sender: TObject);
+begin
+  FMenuPanel.Visible := not FMenuPanel.Visible;
+  FMenuPanel.BringToFront;
+  FMenuButton.BringToFront;
 end;
 
 procedure TFrmTrainerHome.UpdateFirstRequestStatus(const AStatus: string);

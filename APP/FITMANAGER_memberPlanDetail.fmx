@@ -8,6 +8,16 @@ object FrmMemberPlanDetail: TFrmMemberPlanDetail
   FormFactor.Height = 844
   FormFactor.Devices = [Desktop, iPhone, iPad]
   DesignerMasterStyle = 0
+  object imgBackground: TImage
+    MultiResBitmap = <
+      item
+      end>
+    Align = Client
+    Size.Width = 390.000000000000000000
+    Size.Height = 844.000000000000000000
+    Size.PlatformDefault = False
+    WrapMode = Stretch
+  end
   object lblTitle: TLabel
     Position.X = 72.000000000000000000
     Position.Y = 120.000000000000000000
@@ -21,7 +31,7 @@ object FrmMemberPlanDetail: TFrmMemberPlanDetail
   end
   object lblMemberName: TLabel
     Position.X = 72.000000000000000000
-    Position.Y = 178.000000000000000000
+    Position.Y = 146.000000000000000000
     Size.Width = 260.000000000000000000
     Size.Height = 34.000000000000000000
     Size.PlatformDefault = False
@@ -29,32 +39,205 @@ object FrmMemberPlanDetail: TFrmMemberPlanDetail
     TextSettings.Font.Style = [fsBold]
     Text = 'Ime i prezime'
   end
-  object lblProgram: TLabel
-    Position.X = 72.000000000000000000
-    Position.Y = 250.000000000000000000
-    Size.Width = 220.000000000000000000
-    Size.Height = 28.000000000000000000
+  object lblMemberGoal: TLabel
+    Position.X = 52.000000000000000000
+    Position.Y = 202.000000000000000000
+    Size.Width = 328.000000000000000000
+    Size.Height = 60.000000000000000000
     Size.PlatformDefault = False
-    TextSettings.Font.Size = 14.000000000000000000
+    TextSettings.Font.Size = 12.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    TextSettings.FontColor = claRed
+    WordWrap = True
+    Text = 'Cilj:'
+  end
+  object lblPlanTitle: TLabel
+    Position.X = 46.000000000000000000
+    Position.Y = 638.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 12.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    Text = 'Naziv plana:'
+  end
+  object edtPlanTitle: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    Position.X = 46.000000000000000000
+    Position.Y = 662.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+  end
+  object lblGoal: TLabel
+    Position.X = 46.000000000000000000
+    Position.Y = 708.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 12.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    Text = 'Cilj:'
+  end
+  object edtGoal: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    Position.X = 46.000000000000000000
+    Position.Y = 732.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+  end
+  object lblProgram: TLabel
+    Position.X = 46.000000000000000000
+    Position.Y = 778.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 12.000000000000000000
     TextSettings.Font.Style = [fsBold]
     Text = 'Program treninga:'
   end
   object cbPrograms: TComboBox
-    Position.X = 72.000000000000000000
-    Position.Y = 286.000000000000000000
-    Size.Width = 260.000000000000000000
-    Size.Height = 44.000000000000000000
+    Position.X = 46.000000000000000000
+    Position.Y = 802.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 36.000000000000000000
     Size.PlatformDefault = False
-    TabOrder = 0
+    TabOrder = 2
+  end
+  object lblMaxTrainingCount: TLabel
+    Position.X = 46.000000000000000000
+    Position.Y = 914.000000000000000000
+    Size.Width = 140.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 12.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    Text = 'Broj treninga:'
+  end
+  object edtMaxTrainingCount: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    Position.X = 46.000000000000000000
+    Position.Y = 938.000000000000000000
+    Size.Width = 140.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+  end
+  object lblDuration: TLabel
+    Position.X = 206.000000000000000000
+    Position.Y = 914.000000000000000000
+    Size.Width = 140.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 12.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    Text = 'Trajanje min:'
+  end
+  object edtDuration: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    Position.X = 206.000000000000000000
+    Position.Y = 938.000000000000000000
+    Size.Width = 140.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 4
+  end
+  object lblStartDate: TLabel
+    Position.X = 46.000000000000000000
+    Position.Y = 988.000000000000000000
+    Size.Width = 140.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 12.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    Text = 'Datum pocetka:'
+  end
+  object edtStartDate: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    Position.X = 46.000000000000000000
+    Position.Y = 1012.000000000000000000
+    Size.Width = 140.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 5
+  end
+  object lblEndDate: TLabel
+    Position.X = 206.000000000000000000
+    Position.Y = 988.000000000000000000
+    Size.Width = 140.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 12.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    Text = 'Datum kraja:'
+  end
+  object edtEndDate: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    Position.X = 206.000000000000000000
+    Position.Y = 1012.000000000000000000
+    Size.Width = 140.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 6
+  end
+  object lblStatus: TLabel
+    Position.X = 46.000000000000000000
+    Position.Y = 1062.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 12.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    Text = 'Status plana:'
+  end
+  object cbStatus: TComboBox
+    Position.X = 46.000000000000000000
+    Position.Y = 1086.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 7
   end
   object btnConfirm: TButton
-    Position.X = 116.000000000000000000
-    Position.Y = 390.000000000000000000
+    Position.X = 106.000000000000000000
+    Position.Y = 1144.000000000000000000
     Size.Width = 172.000000000000000000
-    Size.Height = 48.000000000000000000
+    Size.Height = 38.000000000000000000
     Size.PlatformDefault = False
-    TabOrder = 1
+    TabOrder = 8
     Text = 'Potvrdi izmene'
     OnClick = btnConfirmClick
+  end
+  object lblMessage: TLabel
+    Position.X = 46.000000000000000000
+    Position.Y = 1122.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 16.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 10.000000000000000000
+    TextSettings.FontColor = claRed
+    TextSettings.HorzAlign = Center
+    Text = ''
+  end
+  object lblRoom: TLabel
+    Position.X = 46.000000000000000000
+    Position.Y = 846.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 12.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    Text = 'Sala treninga:'
+  end
+  object cbRooms: TComboBox
+    Position.X = 46.000000000000000000
+    Position.Y = 870.000000000000000000
+    Size.Width = 300.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 9
   end
 end

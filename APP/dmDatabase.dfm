@@ -2,6 +2,9 @@ object DB: TDB
   Height = 480
   Width = 640
   object FDConnection1: TFDConnection
+    Params.Strings = (
+      'DriverID=SQLite'
+      'Database=..\database\fitmanager.db')
     FormatOptions.AssignedValues = [fvMapRules]
     FormatOptions.OwnMapRules = True
     FormatOptions.MapRules = <
@@ -13,9 +16,6 @@ object DB: TDB
         SourceDataType = dtWideMemo
         TargetDataType = dtWideString
       end>
-    Params.Strings = (
-      'DriverID=SQLite'
-      'Database=..\database\fitmanager.db')
     LoginPrompt = False
     Left = 176
     Top = 160

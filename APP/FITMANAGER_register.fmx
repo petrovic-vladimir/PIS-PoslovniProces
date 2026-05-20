@@ -1,0 +1,118 @@
+object FrmRegister: TFrmRegister
+  Left = 0
+  Top = 0
+  Caption = 'FITMANAGER - register'
+  ClientHeight = 844
+  ClientWidth = 390
+  FormFactor.Width = 390
+  FormFactor.Height = 844
+  FormFactor.Devices = [Desktop, iPhone, iPad]
+  DesignerMasterStyle = 0
+  object lblTitle: TLabel
+    Position.X = 44.000000000000000000
+    Position.Y = 64.000000000000000000
+    Size.Width = 302.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 22.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    TextSettings.HorzAlign = Center
+    Text = 'Registracija clana'
+  end
+  object edtFirstName: TEdit
+    Position.X = 50.000000000000000000
+    Position.Y = 126.000000000000000000
+    Size.Width = 290.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    TextPrompt = 'Ime'
+  end
+  object edtLastName: TEdit
+    Position.X = 50.000000000000000000
+    Position.Y = 178.000000000000000000
+    Size.Width = 290.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    TextPrompt = 'Prezime'
+  end
+  object edtUsername: TEdit
+    Position.X = 50.000000000000000000
+    Position.Y = 230.000000000000000000
+    Size.Width = 290.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    TextPrompt = 'Username'
+  end
+  object edtEmail: TEdit
+    Position.X = 50.000000000000000000
+    Position.Y = 282.000000000000000000
+    Size.Width = 290.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+    TextPrompt = 'Email'
+  end
+  object edtPhone: TEdit
+    Position.X = 50.000000000000000000
+    Position.Y = 334.000000000000000000
+    Size.Width = 290.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 4
+    TextPrompt = 'Telefon'
+  end
+  object edtPassword: TEdit
+    Position.X = 50.000000000000000000
+    Position.Y = 386.000000000000000000
+    Size.Width = 290.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    Password = True
+    TabOrder = 5
+    TextPrompt = 'Lozinka'
+  end
+  object edtRepeatPassword: TEdit
+    Position.X = 50.000000000000000000
+    Position.Y = 438.000000000000000000
+    Size.Width = 290.000000000000000000
+    Size.Height = 40.000000000000000000
+    Size.PlatformDefault = False
+    Password = True
+    TabOrder = 6
+    TextPrompt = 'Ponovi lozinku'
+  end
+  object lblMessage: TLabel
+    Position.X = 50.000000000000000000
+    Position.Y = 496.000000000000000000
+    Size.Width = 290.000000000000000000
+    Size.Height = 54.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 11.000000000000000000
+    TextSettings.HorzAlign = Center
+    WordWrap = True
+    Text = ''
+  end
+  object btnCreate: TButton
+    Position.X = 50.000000000000000000
+    Position.Y = 574.000000000000000000
+    Size.Width = 290.000000000000000000
+    Size.Height = 46.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 7
+    Text = 'Kreiraj nalog'
+    OnClick = btnCreateClick
+  end
+  object btnBack: TButton
+    Position.X = 50.000000000000000000
+    Position.Y = 638.000000000000000000
+    Size.Width = 290.000000000000000000
+    Size.Height = 46.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 8
+    Text = 'Nazad na login'
+    OnClick = btnBackClick
+  end
+end

@@ -20,7 +20,11 @@ type
     procedure btnAddClick(Sender: TObject);
     procedure btnBackClick(Sender: TObject);
   private
+    FMenuButton: TButton;
+    FMenuPanel: TRectangle;
+    FLogoutButton: TButton;
     function BuildPath(const APath, AFileName: string): string;
+    procedure BuildLogoutMenu;
     function FindAssetFile(const AFileName: string): string;
     procedure AddHeaderRow;
     procedure AddProgramRow(const ATop: Single; AProgramId: Integer;
@@ -29,6 +33,8 @@ type
     procedure DeleteProgramClick(Sender: TObject);
     procedure EditProgramClick(Sender: TObject);
     procedure LoadTemplateBackground;
+    procedure LogoutClick(Sender: TObject);
+    procedure ToggleMenuClick(Sender: TObject);
   public
     constructor Create(AOwner: TComponent); override;
     procedure RefreshPrograms;
@@ -45,6 +51,8 @@ constructor TFrmAdminHome.Create(AOwner: TComponent);
 begin
   inherited;
   LoadTemplateBackground;
+  BuildLogoutMenu;
+  btnBack.Visible := False;
   try
     DB.InitializeDatabase;
     RefreshPrograms;
@@ -52,6 +60,41 @@ begin
     on E: Exception do
       lblMessage.Text := 'Greska pri ucitavanju baze: ' + E.Message;
   end;
+end;
+
+procedure TFrmAdminHome.BuildLogoutMenu;
+begin
+  FMenuButton := TButton.Create(Self);
+  FMenuButton.Parent := Self;
+  FMenuButton.Position.X := 10;
+  FMenuButton.Position.Y := 8;
+  FMenuButton.Width := 34;
+  FMenuButton.Height := 30;
+  FMenuButton.Text := #9776;
+  FMenuButton.OnClick := ToggleMenuClick;
+  FMenuButton.BringToFront;
+
+  FMenuPanel := TRectangle.Create(Self);
+  FMenuPanel.Parent := Self;
+  FMenuPanel.Position.X := 10;
+  FMenuPanel.Position.Y := 42;
+  FMenuPanel.Width := 118;
+  FMenuPanel.Height := 42;
+  FMenuPanel.XRadius := 6;
+  FMenuPanel.YRadius := 6;
+  FMenuPanel.Fill.Color := $FFFFFFFF;
+  FMenuPanel.Stroke.Color := $FF444444;
+  FMenuPanel.Visible := False;
+  FMenuPanel.BringToFront;
+
+  FLogoutButton := TButton.Create(FMenuPanel);
+  FLogoutButton.Parent := FMenuPanel;
+  FLogoutButton.Position.X := 6;
+  FLogoutButton.Position.Y := 6;
+  FLogoutButton.Width := 106;
+  FLogoutButton.Height := 30;
+  FLogoutButton.Text := 'Logout';
+  FLogoutButton.OnClick := LogoutClick;
 end;
 
 procedure TFrmAdminHome.AddHeaderRow;
@@ -258,6 +301,14 @@ begin
     imgBackground.Bitmap.LoadFromFile(FileName);
 end;
 
+procedure TFrmAdminHome.LogoutClick(Sender: TObject);
+begin
+  DB.ResetCurrentUser;
+  if Assigned(Application.MainForm) then
+    Application.MainForm.Show;
+  Close;
+end;
+
 procedure TFrmAdminHome.RefreshPrograms;
 const
   CHeaderHeight = 28;
@@ -290,6 +341,13 @@ begin
 
   lyProgramsContent.Height := CHeaderHeight + (Index * CRowHeight);
   DB.FDQuery1.Close;
+end;
+
+procedure TFrmAdminHome.ToggleMenuClick(Sender: TObject);
+begin
+  FMenuPanel.Visible := not FMenuPanel.Visible;
+  FMenuPanel.BringToFront;
+  FMenuButton.BringToFront;
 end;
 
 end.

@@ -13,11 +13,17 @@ uses
   FireDAC.Comp.Client, FireDAC.Comp.Script, FireDAC.Comp.ScriptCommands;
 
 type
+  TUserRole = (urNone, urAdmin, urMember, urTrainer);
+
   TDB = class(TDataModule)
     FDConnection1: TFDConnection;
     FDQuery1: TFDQuery;
-    procedure DataModuleCreate(Sender: TObject);
   private
+    FCurrentRole: TUserRole;
+    FCurrentUserId: Integer;
+    FCurrentMemberId: Integer;
+    FCurrentTrainerId: Integer;
+    FCurrentUsername: string;
     function BuildPath(const APath, AFileName: string): string;
     function ColumnExists(const ATableName, AColumnName: string): Boolean;
     function ColumnIsRequired(const ATableName, AColumnName: string): Boolean;
@@ -29,10 +35,20 @@ type
     procedure CreateDatabaseFromScript(const AScriptFileName: string);
     procedure CreateMinimalDatabase;
     procedure EnsureDatabaseSchema;
+    procedure EnsureLoginSchema;
     procedure ExecuteSqlText(const ASqlText: string);
     procedure RebuildPlanTrainingForProgramDelete;
   public
+    function AuthenticateUser(const ALogin, APassword: string): Boolean;
     procedure InitializeDatabase;
+    procedure ResetCurrentUser;
+    function RegisterMemberUser(const AFirstName, ALastName, AUsername, APassword,
+      AEmail, APhone: string): Boolean;
+    property CurrentMemberId: Integer read FCurrentMemberId;
+    property CurrentRole: TUserRole read FCurrentRole;
+    property CurrentTrainerId: Integer read FCurrentTrainerId;
+    property CurrentUserId: Integer read FCurrentUserId;
+    property CurrentUsername: string read FCurrentUsername;
   end;
 
 var
@@ -69,6 +85,79 @@ begin
   finally
     Query.Free;
   end;
+end;
+
+function TDB.AuthenticateUser(const ALogin, APassword: string): Boolean;
+var
+  LoginEmail: string;
+begin
+  ResetCurrentUser;
+  InitializeDatabase;
+  LoginEmail := Trim(ALogin);
+
+  FDQuery1.Close;
+  FDQuery1.SQL.Text :=
+    'SELECT administrator_id, username, email FROM administrator ' +
+    'WHERE (LOWER(TRIM(username)) = LOWER(:login_username) OR LOWER(TRIM(email)) = LOWER(:login_email)) ' +
+    'AND password = :password AND TRIM(status) = :status ' +
+    'LIMIT 1';
+  FDQuery1.ParamByName('login_username').AsString := LoginEmail;
+  FDQuery1.ParamByName('login_email').AsString := LoginEmail;
+  FDQuery1.ParamByName('password').AsString := APassword;
+  FDQuery1.ParamByName('status').AsString := 'Aktivan';
+  FDQuery1.Open;
+  Result := not FDQuery1.IsEmpty;
+  if Result then
+  begin
+    FCurrentUserId := FDQuery1.FieldByName('administrator_id').AsInteger;
+    FCurrentUsername := FDQuery1.FieldByName('username').AsString;
+    FCurrentRole := urAdmin;
+    FDQuery1.Close;
+    Exit(True);
+  end;
+  FDQuery1.Close;
+
+  FDQuery1.SQL.Text :=
+    'SELECT trainer_id, username, email FROM trainer ' +
+    'WHERE (LOWER(TRIM(username)) = LOWER(:login_username) OR LOWER(TRIM(email)) = LOWER(:login_email)) ' +
+    'AND password = :password AND TRIM(status) = :status ' +
+    'LIMIT 1';
+  FDQuery1.ParamByName('login_username').AsString := LoginEmail;
+  FDQuery1.ParamByName('login_email').AsString := LoginEmail;
+  FDQuery1.ParamByName('password').AsString := APassword;
+  FDQuery1.ParamByName('status').AsString := 'Aktivan';
+  FDQuery1.Open;
+  Result := not FDQuery1.IsEmpty;
+  if Result then
+  begin
+    FCurrentUserId := FDQuery1.FieldByName('trainer_id').AsInteger;
+    FCurrentTrainerId := FCurrentUserId;
+    FCurrentUsername := FDQuery1.FieldByName('username').AsString;
+    FCurrentRole := urTrainer;
+    FDQuery1.Close;
+    Exit(True);
+  end;
+  FDQuery1.Close;
+
+  FDQuery1.SQL.Text :=
+    'SELECT member_id, username, email FROM member ' +
+    'WHERE (LOWER(TRIM(username)) = LOWER(:login_username) OR LOWER(TRIM(email)) = LOWER(:login_email)) ' +
+    'AND password = :password AND TRIM(status) = :status ' +
+    'LIMIT 1';
+  FDQuery1.ParamByName('login_username').AsString := LoginEmail;
+  FDQuery1.ParamByName('login_email').AsString := LoginEmail;
+  FDQuery1.ParamByName('password').AsString := APassword;
+  FDQuery1.ParamByName('status').AsString := 'Aktivan';
+  FDQuery1.Open;
+  Result := not FDQuery1.IsEmpty;
+  if Result then
+  begin
+    FCurrentUserId := FDQuery1.FieldByName('member_id').AsInteger;
+    FCurrentMemberId := FCurrentUserId;
+    FCurrentUsername := FDQuery1.FieldByName('username').AsString;
+    FCurrentRole := urMember;
+  end;
+  FDQuery1.Close;
 end;
 
 function TDB.BuildPath(const APath, AFileName: string): string;
@@ -129,12 +218,17 @@ const
     'PRAGMA foreign_keys = OFF;'#13#10 +
     'CREATE TABLE IF NOT EXISTS member (' +
     'member_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, ' +
-    'first_name TEXT NOT NULL, last_name TEXT NOT NULL, age INTEGER NOT NULL, ' +
-    'sex TEXT NOT NULL, phone TEXT, email TEXT NOT NULL, membership_date TEXT, status TEXT);'#13#10 +
+    'username TEXT NOT NULL UNIQUE, first_name TEXT NOT NULL, last_name TEXT NOT NULL, age INTEGER NOT NULL, ' +
+    'sex TEXT NOT NULL, phone TEXT, email TEXT NOT NULL, membership_date TEXT, status TEXT, ' +
+    'password TEXT NOT NULL DEFAULT ''clan123'');'#13#10 +
     'CREATE TABLE IF NOT EXISTS trainer (' +
     'trainer_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, ' +
-    'first_name TEXT NOT NULL, last_name TEXT NOT NULL, phone TEXT, email TEXT NOT NULL, ' +
-    'specialization TEXT, status TEXT);'#13#10 +
+    'username TEXT NOT NULL UNIQUE, first_name TEXT NOT NULL, last_name TEXT NOT NULL, phone TEXT, email TEXT NOT NULL, ' +
+    'specialization TEXT, status TEXT, password TEXT NOT NULL DEFAULT ''trener123'');'#13#10 +
+    'CREATE TABLE IF NOT EXISTS administrator (' +
+    'administrator_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, ' +
+    'username TEXT NOT NULL UNIQUE, first_name TEXT NOT NULL, last_name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, ' +
+    'password TEXT NOT NULL, status TEXT NOT NULL);'#13#10 +
     'CREATE TABLE IF NOT EXISTS program_training (' +
     'program_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL UNIQUE, ' +
     'description TEXT NOT NULL, program_type TEXT NOT NULL, goal TEXT, status TEXT NOT NULL DEFAULT ''Aktivan'');'#13#10 +
@@ -165,21 +259,23 @@ const
     'report_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, title TEXT, report_type TEXT, ' +
     'start_time TEXT NOT NULL, end_time TEXT NOT NULL, date_created TEXT NOT NULL, description TEXT, record_id INTEGER NOT NULL, ' +
     'FOREIGN KEY(record_id) REFERENCES records(record_id));'#13#10 +
-    'INSERT OR IGNORE INTO member VALUES ' +
-    '(300, ''Aleksandar'', ''Markovic'', 34, ''Muski'', ''+381641112233'', ' +
-    '''aleksandar.markovic@example.com'', ''2026-01-08'', ''Aktivan'');'#13#10 +
-    'INSERT OR IGNORE INTO trainer VALUES ' +
-    '(400, ''Milan'', ''Trifunovic'', ''+381601001001'', ''milan.trifunovic@fitmanager.rs'', ' +
-    '''Snaga i hipertrofija'', ''Aktivan'');'#13#10 +
+    'INSERT OR IGNORE INTO member(member_id, username, first_name, last_name, age, sex, phone, email, membership_date, status, password) VALUES ' +
+    '(300, ''aleksandar.markovic'', ''Aleksandar'', ''Markovic'', 34, ''Muski'', ''+381641112233'', ' +
+    '''aleksandar.markovic@example.com'', ''2026-01-08'', ''Aktivan'', ''clan123'');'#13#10 +
+    'INSERT OR IGNORE INTO trainer(trainer_id, username, first_name, last_name, phone, email, specialization, status, password) VALUES ' +
+    '(400, ''milan.trifunovic'', ''Milan'', ''Trifunovic'', ''+381601001001'', ''milan.trifunovic@fitmanager.rs'', ' +
+    '''Snaga i hipertrofija'', ''Aktivan'', ''trener123'');'#13#10 +
+    'INSERT OR IGNORE INTO administrator VALUES ' +
+    '(1, ''admin'', ''Admin'', ''Fitmanager'', ''admin@fitmanager.rs'', ''admin123'', ''Aktivan'');'#13#10 +
     'INSERT OR IGNORE INTO program_training VALUES ' +
     '(100, ''Pocetni program snage'', ''Program za clanove koji prvi put rade sa opterecenjem.'', ' +
     '''Snaga'', ''Savladavanje tehnike i osnovna snaga'', ''Aktivan'');'#13#10 +
     'INSERT OR IGNORE INTO plan_training VALUES ' +
     '(200, ''Osnovna snaga - Aleksandar'', ''Sigurna tehnika cucnja, potiska i mrtvog dizanja'', ' +
     '16, 60, ''2026-05-01'', ''2026-07-15'', ''Aktivan'', 100, 300, 400);'#13#10 +
-    'DELETE FROM sqlite_sequence WHERE name IN (''program_training'', ''plan_training'', ''member'', ''trainer'');'#13#10 +
+    'DELETE FROM sqlite_sequence WHERE name IN (''administrator'', ''program_training'', ''plan_training'', ''member'', ''trainer'');'#13#10 +
     'INSERT INTO sqlite_sequence(name, seq) VALUES ' +
-    '(''program_training'', 100), (''plan_training'', 200), (''member'', 300), (''trainer'', 400);'#13#10 +
+    '(''administrator'', 1), (''program_training'', 100), (''plan_training'', 200), (''member'', 300), (''trainer'', 400);'#13#10 +
     'PRAGMA foreign_keys = ON;';
 begin
   ExecuteSqlText(CMinimalDatabaseSql);
@@ -201,6 +297,73 @@ begin
 
   if ColumnIsRequired('plan_training', 'program_id') then
     RebuildPlanTrainingForProgramDelete;
+
+  FDConnection1.ExecSQL(
+    'CREATE TABLE IF NOT EXISTS training_room (' +
+    'room_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, ' +
+    'name TEXT NOT NULL UNIQUE, capacity INTEGER NOT NULL, status TEXT NOT NULL)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO training_room(room_id, name, capacity, status) VALUES (900, ''Sala 1'', 12, ''Aktivna'')');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO training_room(room_id, name, capacity, status) VALUES (901, ''Sala 2'', 8, ''Aktivna'')');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO training_room(room_id, name, capacity, status) VALUES (902, ''Kardio sala'', 16, ''Aktivna'')');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO training_room(room_id, name, capacity, status) VALUES (903, ''Funkcionalna zona'', 10, ''Aktivna'')');
+  if not ColumnExists('plan_training', 'room_id') then
+    FDConnection1.ExecSQL('ALTER TABLE plan_training ADD COLUMN room_id INTEGER');
+  FDConnection1.ExecSQL('UPDATE plan_training SET room_id = 900 WHERE room_id IS NULL');
+
+  FDConnection1.ExecSQL(
+    'CREATE TABLE IF NOT EXISTS member_progress (' +
+    'progress_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, ' +
+    'member_id INTEGER NOT NULL UNIQUE, initial_weight REAL NOT NULL, current_weight REAL NOT NULL, ' +
+    'height_cm INTEGER NOT NULL, initial_bmi REAL NOT NULL, current_bmi REAL NOT NULL, ' +
+    'initial_muscle_percent REAL NOT NULL, current_muscle_percent REAL NOT NULL, ' +
+    'initial_calories INTEGER NOT NULL, current_calories INTEGER NOT NULL, ' +
+    'FOREIGN KEY(member_id) REFERENCES member(member_id))');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1000, 300, 102, 100, 187, 29.2, 28.6, 34, 36, 3240, 3120)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1001, 301, 78, 74, 168, 27.6, 26.2, 31, 33, 2450, 2300)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1002, 302, 86, 89, 182, 26.0, 26.9, 38, 40, 2980, 3200)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1003, 303, 68, 66, 171, 23.3, 22.6, 35, 36, 2180, 2100)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1004, 304, 91, 90, 179, 28.4, 28.1, 32, 33, 2860, 2800)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1005, 305, 64, 63, 170, 22.1, 21.8, 36, 38, 2100, 2050)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1006, 306, 95, 94, 188, 26.9, 26.6, 39, 40, 3100, 3050)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1007, 307, 59, 60, 166, 21.4, 21.8, 34, 35, 1980, 2020)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1008, 308, 106, 103, 195, 27.9, 27.1, 33, 35, 3300, 3180)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1009, 309, 72, 70, 174, 23.8, 23.1, 32, 34, 2260, 2180)');
+
+  EnsureLoginSchema;
+end;
+
+procedure TDB.EnsureLoginSchema;
+begin
+  FDConnection1.ExecSQL(
+    'CREATE TABLE IF NOT EXISTS administrator (' +
+    'administrator_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, ' +
+    'first_name TEXT NOT NULL, last_name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, ' +
+    'password TEXT NOT NULL, status TEXT NOT NULL)');
+
+  if not ColumnExists('member', 'password') then
+    FDConnection1.ExecSQL('ALTER TABLE member ADD COLUMN password TEXT NOT NULL DEFAULT ''clan123''');
+  if not ColumnExists('trainer', 'password') then
+    FDConnection1.ExecSQL('ALTER TABLE trainer ADD COLUMN password TEXT NOT NULL DEFAULT ''trener123''');
+  if not ColumnExists('member', 'username') then
+    FDConnection1.ExecSQL('ALTER TABLE member ADD COLUMN username TEXT');
+  if not ColumnExists('trainer', 'username') then
+    FDConnection1.ExecSQL('ALTER TABLE trainer ADD COLUMN username TEXT');
+  if not ColumnExists('administrator', 'username') then
+    FDConnection1.ExecSQL('ALTER TABLE administrator ADD COLUMN username TEXT');
+
+  FDConnection1.ExecSQL('UPDATE member SET password = ''clan123'' WHERE password IS NULL OR password = ''''');
+  FDConnection1.ExecSQL('UPDATE trainer SET password = ''trener123'' WHERE password IS NULL OR password = ''''');
+  FDConnection1.ExecSQL('UPDATE member SET username = LOWER(REPLACE(first_name || ''.'' || last_name, '' '', '''')) WHERE username IS NULL OR username = ''''');
+  FDConnection1.ExecSQL('UPDATE trainer SET username = LOWER(REPLACE(first_name || ''.'' || last_name, '' '', '''')) WHERE username IS NULL OR username = ''''');
+  FDConnection1.ExecSQL('UPDATE administrator SET username = ''admin'' WHERE username IS NULL OR username = ''''');
+  FDConnection1.ExecSQL('UPDATE member SET username = ''ana.ristic'', password = ''clan123'', status = ''Aktivan'' WHERE email = ''ana.ristic@example.com''');
+  FDConnection1.ExecSQL('UPDATE member SET username = ''aleksandar.markovic'', password = ''clan123'', status = ''Aktivan'' WHERE email = ''aleksandar.markovic@example.com''');
+  FDConnection1.ExecSQL('UPDATE trainer SET username = ''milan.trifunovic'', password = ''trener123'', status = ''Aktivan'' WHERE email = ''milan.trifunovic@fitmanager.rs''');
+  FDConnection1.ExecSQL('UPDATE member SET status = ''Neaktivan'' WHERE LOWER(TRIM(username)) = ''clan'' OR LOWER(TRIM(email)) = ''clan''');
+  FDConnection1.ExecSQL(
+    'INSERT OR IGNORE INTO administrator(administrator_id, username, first_name, last_name, email, password, status) ' +
+    'VALUES (1, ''admin'', ''Admin'', ''Fitmanager'', ''admin@fitmanager.rs'', ''admin123'', ''Aktivan'')');
+  FDConnection1.ExecSQL('DROP TABLE IF EXISTS app_user');
 end;
 
 procedure TDB.RebuildPlanTrainingForProgramDelete;
@@ -240,10 +403,6 @@ begin
   finally
     Script.Free;
   end;
-end;
-
-procedure TDB.DataModuleCreate(Sender: TObject);
-begin
 end;
 
 procedure TDB.InitializeDatabase;
@@ -301,6 +460,64 @@ begin
   end;
 
   EnsureDatabaseSchema;
+end;
+
+procedure TDB.ResetCurrentUser;
+begin
+  FCurrentRole := urNone;
+  FCurrentUserId := 0;
+  FCurrentMemberId := 0;
+  FCurrentTrainerId := 0;
+  FCurrentUsername := '';
+end;
+
+function TDB.RegisterMemberUser(const AFirstName, ALastName, AUsername,
+  APassword, AEmail, APhone: string): Boolean;
+begin
+  Result := False;
+  InitializeDatabase;
+
+  FDQuery1.Close;
+  FDQuery1.SQL.Text :=
+    'SELECT 1 FROM member WHERE email = :email OR username = :username ' +
+    'UNION SELECT 1 FROM trainer WHERE email = :email OR username = :username ' +
+    'UNION SELECT 1 FROM administrator WHERE email = :email OR username = :username';
+  FDQuery1.ParamByName('username').AsString := Trim(AUsername);
+  FDQuery1.ParamByName('email').AsString := Trim(AEmail);
+  FDQuery1.Open;
+  if not FDQuery1.IsEmpty then
+  begin
+    FDQuery1.Close;
+    Exit;
+  end;
+  FDQuery1.Close;
+
+  FDConnection1.StartTransaction;
+  try
+    FDQuery1.SQL.Text :=
+      'INSERT INTO member(username, first_name, last_name, age, sex, phone, email, membership_date, status, password) ' +
+      'VALUES (:username, :first_name, :last_name, :age, :sex, :phone, :email, :membership_date, :status, :password)';
+    FDQuery1.ParamByName('username').AsString := Trim(AUsername);
+    FDQuery1.ParamByName('first_name').AsString := Trim(AFirstName);
+    FDQuery1.ParamByName('last_name').AsString := Trim(ALastName);
+    FDQuery1.ParamByName('age').AsInteger := 18;
+    FDQuery1.ParamByName('sex').AsString := 'Nije uneto';
+    FDQuery1.ParamByName('phone').AsString := Trim(APhone);
+    FDQuery1.ParamByName('email').AsString := Trim(AEmail);
+    FDQuery1.ParamByName('membership_date').AsString := FormatDateTime('yyyy-mm-dd', Date);
+    FDQuery1.ParamByName('status').AsString := 'Aktivan';
+    FDQuery1.ParamByName('password').AsString := APassword;
+    FDQuery1.ExecSQL;
+
+    FDConnection1.Commit;
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      FDConnection1.Rollback;
+      raise;
+    end;
+  end;
 end;
 
 function TDB.GetDatabaseFileName: string;

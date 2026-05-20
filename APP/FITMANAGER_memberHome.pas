@@ -22,11 +22,17 @@ type
     FMemberId: Integer;
     FTrainerId: Integer;
     FPlanId: Integer;
+    FMenuButton: TButton;
+    FMenuPanel: TRectangle;
+    FLogoutButton: TButton;
     function BuildPath(const APath, AFileName: string): string;
+    procedure BuildLogoutMenu;
     function FindAssetFile(const AFileName: string): string;
     procedure LoadMemberContext;
     procedure LoadTemplateBackground;
+    procedure LogoutClick(Sender: TObject);
     procedure SendTrainingRequest;
+    procedure ToggleMenuClick(Sender: TObject);
   public
     constructor Create(AOwner: TComponent); override;
   end;
@@ -42,6 +48,8 @@ constructor TFrmMemberHome.Create(AOwner: TComponent);
 begin
   inherited;
   LoadTemplateBackground;
+  BuildLogoutMenu;
+  btnBack.Visible := False;
   try
     DB.InitializeDatabase;
     LoadMemberContext;
@@ -51,8 +59,51 @@ begin
   end;
 end;
 
+procedure TFrmMemberHome.BuildLogoutMenu;
+begin
+  FMenuButton := TButton.Create(Self);
+  FMenuButton.Parent := Self;
+  FMenuButton.Position.X := 10;
+  FMenuButton.Position.Y := 8;
+  FMenuButton.Width := 34;
+  FMenuButton.Height := 30;
+  FMenuButton.Text := #9776;
+  FMenuButton.OnClick := ToggleMenuClick;
+  FMenuButton.BringToFront;
+
+  FMenuPanel := TRectangle.Create(Self);
+  FMenuPanel.Parent := Self;
+  FMenuPanel.Position.X := 10;
+  FMenuPanel.Position.Y := 42;
+  FMenuPanel.Width := 118;
+  FMenuPanel.Height := 42;
+  FMenuPanel.XRadius := 6;
+  FMenuPanel.YRadius := 6;
+  FMenuPanel.Fill.Color := $FFFFFFFF;
+  FMenuPanel.Stroke.Color := $FF444444;
+  FMenuPanel.Visible := False;
+  FMenuPanel.BringToFront;
+
+  FLogoutButton := TButton.Create(FMenuPanel);
+  FLogoutButton.Parent := FMenuPanel;
+  FLogoutButton.Position.X := 6;
+  FLogoutButton.Position.Y := 6;
+  FLogoutButton.Width := 106;
+  FLogoutButton.Height := 30;
+  FLogoutButton.Text := 'Logout';
+  FLogoutButton.OnClick := LogoutClick;
+end;
+
 procedure TFrmMemberHome.btnBackClick(Sender: TObject);
 begin
+  if Assigned(Application.MainForm) then
+    Application.MainForm.Show;
+  Close;
+end;
+
+procedure TFrmMemberHome.LogoutClick(Sender: TObject);
+begin
+  DB.ResetCurrentUser;
   if Assigned(Application.MainForm) then
     Application.MainForm.Show;
   Close;
@@ -103,10 +154,20 @@ begin
   FPlanId := 0;
 
   DB.FDQuery1.Close;
-  DB.FDQuery1.SQL.Text :=
-    'SELECT member_id, first_name, last_name, age, status FROM member ' +
-    'WHERE status = :status ORDER BY member_id LIMIT 1';
-  DB.FDQuery1.ParamByName('status').AsString := 'Aktivan';
+  if DB.CurrentMemberId > 0 then
+  begin
+    DB.FDQuery1.SQL.Text :=
+      'SELECT member_id, first_name, last_name, age, status FROM member ' +
+      'WHERE member_id = :member_id LIMIT 1';
+    DB.FDQuery1.ParamByName('member_id').AsInteger := DB.CurrentMemberId;
+  end
+  else
+  begin
+    DB.FDQuery1.SQL.Text :=
+      'SELECT member_id, first_name, last_name, age, status FROM member ' +
+      'WHERE status = :status ORDER BY member_id LIMIT 1';
+    DB.FDQuery1.ParamByName('status').AsString := 'Aktivan';
+  end;
   DB.FDQuery1.Open;
   if not DB.FDQuery1.IsEmpty then
   begin
@@ -190,6 +251,13 @@ begin
     DB.FDConnection1.Rollback;
     raise;
   end;
+end;
+
+procedure TFrmMemberHome.ToggleMenuClick(Sender: TObject);
+begin
+  FMenuPanel.Visible := not FMenuPanel.Visible;
+  FMenuPanel.BringToFront;
+  FMenuButton.BringToFront;
 end;
 
 end.
