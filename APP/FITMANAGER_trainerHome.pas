@@ -19,9 +19,11 @@ type
     sbMembers: TScrollBox;
     lyMembersContent: TLayout;
     btnBack: TButton;
+    btnOperations: TButton;
     procedure btnApproveClick(Sender: TObject);
     procedure btnBackClick(Sender: TObject);
     procedure btnDeclineClick(Sender: TObject);
+    procedure btnOperationsClick(Sender: TObject);
   private
     FTrainerId: Integer;
     FFirstRequestId: Integer;
@@ -49,7 +51,7 @@ type
 implementation
 
 uses
-  dmDatabase, FITMANAGER_memberPlanDetail;
+  dmDatabase, FITMANAGER_memberPlanDetail, FITMANAGER_trainingOperations;
 
 {$R *.fmx}
 
@@ -193,6 +195,11 @@ end;
 procedure TFrmTrainerHome.btnDeclineClick(Sender: TObject);
 begin
   UpdateFirstRequestStatus('Odbijen');
+end;
+
+procedure TFrmTrainerHome.btnOperationsClick(Sender: TObject);
+begin
+  TFrmTrainingOperations.Create(Application).Show;
 end;
 
 function TFrmTrainerHome.BuildPath(const APath, AFileName: string): string;
@@ -374,6 +381,8 @@ begin
 end;
 
 procedure TFrmTrainerHome.UpdateFirstRequestStatus(const AStatus: string);
+var
+  ScheduleId: Integer;
 begin
   if FFirstRequestId = 0 then
   begin
@@ -383,10 +392,29 @@ begin
 
   DB.FDQuery1.Close;
   DB.FDQuery1.SQL.Text :=
+    'SELECT schedule_id FROM training WHERE training_id = :training_id';
+  DB.FDQuery1.ParamByName('training_id').AsInteger := FFirstRequestId;
+  DB.FDQuery1.Open;
+  ScheduleId := DB.FDQuery1.FieldByName('schedule_id').AsInteger;
+  DB.FDQuery1.Close;
+
+  DB.FDConnection1.StartTransaction;
+  try
+  DB.FDQuery1.SQL.Text :=
     'UPDATE training SET status = :status WHERE training_id = :training_id';
   DB.FDQuery1.ParamByName('status').AsString := AStatus;
   DB.FDQuery1.ParamByName('training_id').AsInteger := FFirstRequestId;
   DB.FDQuery1.ExecSQL;
+    DB.FDQuery1.SQL.Text :=
+      'UPDATE schedule SET status = :status WHERE schedule_id = :schedule_id';
+    DB.FDQuery1.ParamByName('status').AsString := AStatus;
+    DB.FDQuery1.ParamByName('schedule_id').AsInteger := ScheduleId;
+    DB.FDQuery1.ExecSQL;
+    DB.FDConnection1.Commit;
+  except
+    DB.FDConnection1.Rollback;
+    raise;
+  end;
 
   RefreshRequests;
 end;

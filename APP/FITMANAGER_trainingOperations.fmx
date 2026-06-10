@@ -1,0 +1,190 @@
+object FrmTrainingOperations: TFrmTrainingOperations
+  Left = 0
+  Top = 0
+  Caption = 'Termini i evidencija'
+  ClientHeight = 844
+  ClientWidth = 390
+  FormFactor.Width = 390
+  FormFactor.Height = 844
+  FormFactor.Devices = [Desktop, iPhone, iPad]
+  DesignerMasterStyle = 0
+  object lblTitle: TLabel
+    Position.X = 38.000000000000000000
+    Position.Y = 18.000000000000000000
+    Size.Width = 314.000000000000000000
+    Size.Height = 34.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 18.000000000000000000
+    TextSettings.Font.Style = [fsBold]
+    TextSettings.HorzAlign = Center
+    Text = 'Termini i realizacija treninga'
+  end
+  object sbTrainings: TScrollBox
+    Position.X = 26.000000000000000000
+    Position.Y = 62.000000000000000000
+    Size.Width = 338.000000000000000000
+    Size.Height = 250.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    object lyTrainings: TLayout
+      Align = Top
+      Size.Width = 334.000000000000000000
+      Size.Height = 250.000000000000000000
+      Size.PlatformDefault = False
+    end
+  end
+  object lblSelected: TLabel
+    Position.X = 26.000000000000000000
+    Position.Y = 320.000000000000000000
+    Size.Width = 338.000000000000000000
+    Size.Height = 28.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Style = [fsBold]
+    Text = 'Izaberi trening iz liste'
+  end
+  object lblDate: TLabel
+    Position.X = 26.000000000000000000
+    Position.Y = 352.000000000000000000
+    Size.Width = 150.000000000000000000
+    Size.Height = 20.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Datum (yyyy-mm-dd)'
+  end
+  object edtDate: TEdit
+    Position.X = 26.000000000000000000
+    Position.Y = 374.000000000000000000
+    Size.Width = 150.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+  end
+  object lblStart: TLabel
+    Position.X = 190.000000000000000000
+    Position.Y = 352.000000000000000000
+    Size.Width = 78.000000000000000000
+    Size.Height = 20.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Pocetak'
+  end
+  object edtStart: TEdit
+    Position.X = 190.000000000000000000
+    Position.Y = 374.000000000000000000
+    Size.Width = 78.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+  end
+  object lblEnd: TLabel
+    Position.X = 282.000000000000000000
+    Position.Y = 352.000000000000000000
+    Size.Width = 82.000000000000000000
+    Size.Height = 20.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Kraj'
+  end
+  object edtEnd: TEdit
+    Position.X = 282.000000000000000000
+    Position.Y = 374.000000000000000000
+    Size.Width = 82.000000000000000000
+    Size.Height = 36.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+  end
+  object lblNote: TLabel
+    Position.X = 26.000000000000000000
+    Position.Y = 416.000000000000000000
+    Size.Width = 338.000000000000000000
+    Size.Height = 20.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Napomena trenera'
+  end
+  object memNote: TMemo
+    Position.X = 26.000000000000000000
+    Position.Y = 438.000000000000000000
+    Size.Width = 338.000000000000000000
+    Size.Height = 70.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 4
+  end
+  object btnSaveTerm: TButton
+    Enabled = False
+    Position.X = 26.000000000000000000
+    Position.Y = 516.000000000000000000
+    Size.Width = 104.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 5
+    Text = 'Sacuvaj termin'
+    OnClick = btnSaveTermClick
+  end
+  object btnStart: TButton
+    Enabled = False
+    Position.X = 142.000000000000000000
+    Position.Y = 516.000000000000000000
+    Size.Width = 104.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 6
+    Text = 'Pokreni'
+    OnClick = btnStartClick
+  end
+  object btnFinish: TButton
+    Enabled = False
+    Position.X = 258.000000000000000000
+    Position.Y = 516.000000000000000000
+    Size.Width = 106.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 7
+    Text = 'Zavrsi'
+    OnClick = btnFinishClick
+  end
+  object lblMessage: TLabel
+    Position.X = 26.000000000000000000
+    Position.Y = 560.000000000000000000
+    Size.Width = 338.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 10.000000000000000000
+    TextSettings.FontColor = claRed
+    WordWrap = True
+  end
+  object lblReportsTitle: TLabel
+    Position.X = 26.000000000000000000
+    Position.Y = 604.000000000000000000
+    Size.Width = 338.000000000000000000
+    Size.Height = 24.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Style = [fsBold]
+    Text = 'Poslednji izvestaji'
+  end
+  object lblReports: TLabel
+    Position.X = 26.000000000000000000
+    Position.Y = 630.000000000000000000
+    Size.Width = 338.000000000000000000
+    Size.Height = 126.000000000000000000
+    Size.PlatformDefault = False
+    TextSettings.Font.Size = 9.000000000000000000
+    WordWrap = True
+  end
+  object btnRefresh: TButton
+    Position.X = 26.000000000000000000
+    Position.Y = 778.000000000000000000
+    Size.Width = 104.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 8
+    Text = 'Osvezi'
+    OnClick = btnRefreshClick
+  end
+  object btnClose: TButton
+    Position.X = 258.000000000000000000
+    Position.Y = 778.000000000000000000
+    Size.Width = 106.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 9
+    Text = 'Nazad'
+    OnClick = btnCloseClick
+  end
+end

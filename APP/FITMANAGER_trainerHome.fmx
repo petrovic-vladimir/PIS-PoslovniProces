@@ -699,4 +699,14 @@ object FrmTrainerHome: TFrmTrainerHome
     Text = 'Nazad'
     OnClick = btnBackClick
   end
+  object btnOperations: TButton
+    Position.X = 198.000000000000000000
+    Position.Y = 730.000000000000000000
+    Size.Width = 176.000000000000000000
+    Size.Height = 42.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+    Text = 'Termini i evidencija'
+    OnClick = btnOperationsClick
+  end
 end

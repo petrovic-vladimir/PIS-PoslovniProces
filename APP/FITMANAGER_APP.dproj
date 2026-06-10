@@ -268,6 +268,10 @@
             <Form>FrmMemberPlanDetail</Form>
             <FormType>fmx</FormType>
         </DCCReference>
+        <DCCReference Include="FITMANAGER_trainingOperations.pas">
+            <Form>FrmTrainingOperations</Form>
+            <FormType>fmx</FormType>
+        </DCCReference>
         <DCCReference Include="FITMANAGER_adminHome.pas">
             <Form>FrmAdminHome</Form>
             <FormType>fmx</FormType>
@@ -604,6 +608,20 @@
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="assets\Template3.png" Configuration="Debug" Class="File">
+                    <Platform Name="Android">
+                        <RemoteDir>assets\internal\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>assets\internal\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                    <Platform Name="Win32">
+                        <RemoteDir>assets\</RemoteDir>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="assets\login_template.png" Configuration="Debug" Class="File">
                     <Platform Name="Android">
                         <RemoteDir>assets\internal\</RemoteDir>
                         <Overwrite>true</Overwrite>

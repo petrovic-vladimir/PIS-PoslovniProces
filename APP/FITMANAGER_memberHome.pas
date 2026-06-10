@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.IOUtils,
-  FMX.Types, FMX.Controls, FMX.Forms, FMX.StdCtrls, FMX.Objects,
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.StdCtrls, FMX.Objects, FMX.Edit,
   FMX.Controls.Presentation;
 
 type
@@ -16,8 +16,16 @@ type
     lblStatus: TLabel;
     btnBack: TButton;
     btnRequest: TButton;
+    lblDate: TLabel;
+    edtDate: TEdit;
+    lblStartTime: TLabel;
+    edtStartTime: TEdit;
+    lblEndTime: TLabel;
+    edtEndTime: TEdit;
+    btnRefreshStatus: TButton;
     procedure btnBackClick(Sender: TObject);
     procedure btnRequestClick(Sender: TObject);
+    procedure btnRefreshStatusClick(Sender: TObject);
   private
     FMemberId: Integer;
     FTrainerId: Integer;
@@ -29,8 +37,10 @@ type
     procedure BuildLogoutMenu;
     function FindAssetFile(const AFileName: string): string;
     procedure LoadMemberContext;
+    procedure LoadLatestRequest;
     procedure LoadTemplateBackground;
     procedure LogoutClick(Sender: TObject);
+    function ParseIsoDate(const AValue: string; out ADate: TDateTime): Boolean;
     procedure SendTrainingRequest;
     procedure ToggleMenuClick(Sender: TObject);
   public
@@ -49,7 +59,7 @@ begin
   inherited;
   LoadTemplateBackground;
   BuildLogoutMenu;
-  btnBack.Visible := False;
+  btnBack.Visible := True;
   try
     DB.InitializeDatabase;
     LoadMemberContext;
@@ -96,9 +106,30 @@ end;
 
 procedure TFrmMemberHome.btnBackClick(Sender: TObject);
 begin
-  if Assigned(Application.MainForm) then
-    Application.MainForm.Show;
-  Close;
+  if FMemberId = 0 then
+    Exit;
+
+  DB.FDQuery1.Close;
+  DB.FDQuery1.SQL.Text :=
+    'UPDATE training SET status = :cancelled ' +
+    'WHERE training_id = (' +
+    'SELECT tr.training_id FROM training tr ' +
+    'WHERE tr.member_id = :member_id AND tr.status IN (:pending, :approved) ' +
+    'ORDER BY tr.training_id DESC LIMIT 1)';
+  DB.FDQuery1.ParamByName('cancelled').AsString := 'Otkazan';
+  DB.FDQuery1.ParamByName('member_id').AsInteger := FMemberId;
+  DB.FDQuery1.ParamByName('pending').AsString := 'Na cekanju';
+  DB.FDQuery1.ParamByName('approved').AsString := 'Odobren';
+  DB.FDQuery1.ExecSQL;
+  DB.FDQuery1.Close;
+  DB.FDQuery1.SQL.Text :=
+    'UPDATE schedule SET status = :cancelled WHERE schedule_id = (' +
+    'SELECT tr.schedule_id FROM training tr WHERE tr.member_id = :member_id ' +
+    'ORDER BY tr.training_id DESC LIMIT 1)';
+  DB.FDQuery1.ParamByName('cancelled').AsString := 'Otkazan';
+  DB.FDQuery1.ParamByName('member_id').AsInteger := FMemberId;
+  DB.FDQuery1.ExecSQL;
+  LoadLatestRequest;
 end;
 
 procedure TFrmMemberHome.LogoutClick(Sender: TObject);
@@ -112,6 +143,11 @@ end;
 procedure TFrmMemberHome.btnRequestClick(Sender: TObject);
 begin
   SendTrainingRequest;
+end;
+
+procedure TFrmMemberHome.btnRefreshStatusClick(Sender: TObject);
+begin
+  LoadLatestRequest;
 end;
 
 function TFrmMemberHome.BuildPath(const APath, AFileName: string): string;
@@ -198,12 +234,14 @@ begin
     lblStatus.Text := 'Clan jos nema dodeljen plan treninga.';
 
   DB.FDQuery1.Close;
+  LoadLatestRequest;
 end;
 
 procedure TFrmMemberHome.SendTrainingRequest;
 var
-  RequestDate: TDateTime;
   ScheduleId: Integer;
+  RequestDate: TDateTime;
+  StartTimeValue, EndTimeValue: TDateTime;
 begin
   if (FMemberId = 0) or (FTrainerId = 0) or (FPlanId = 0) then
   begin
@@ -211,7 +249,39 @@ begin
     Exit;
   end;
 
-  RequestDate := IncDay(Date, 1);
+  DB.FDQuery1.Close;
+  DB.FDQuery1.SQL.Text :=
+    'SELECT 1 FROM training WHERE member_id = :member_id ' +
+    'AND status IN (:pending, :approved, :active) LIMIT 1';
+  DB.FDQuery1.ParamByName('member_id').AsInteger := FMemberId;
+  DB.FDQuery1.ParamByName('pending').AsString := 'Na cekanju';
+  DB.FDQuery1.ParamByName('approved').AsString := 'Odobren';
+  DB.FDQuery1.ParamByName('active').AsString := 'U toku';
+  DB.FDQuery1.Open;
+  if not DB.FDQuery1.IsEmpty then
+  begin
+    DB.FDQuery1.Close;
+    lblStatus.Text := 'Vec postoji aktivan zahtev ili trening.';
+    Exit;
+  end;
+  DB.FDQuery1.Close;
+
+  if not ParseIsoDate(Trim(edtDate.Text), RequestDate) then
+  begin
+    lblStatus.Text := 'Datum mora biti u formatu yyyy-mm-dd.';
+    Exit;
+  end;
+  if not TryStrToTime(Trim(edtStartTime.Text), StartTimeValue) or
+     not TryStrToTime(Trim(edtEndTime.Text), EndTimeValue) then
+  begin
+    lblStatus.Text := 'Vreme mora biti u formatu hh:mm.';
+    Exit;
+  end;
+  if EndTimeValue <= StartTimeValue then
+  begin
+    lblStatus.Text := 'Vreme zavrsetka mora biti posle pocetka.';
+    Exit;
+  end;
 
   DB.FDConnection1.StartTransaction;
   try
@@ -220,8 +290,8 @@ begin
       'INSERT INTO schedule (training_date, start_time, end_time, status, note, plan_id) ' +
       'VALUES (:training_date, :start_time, :end_time, :status, :note, :plan_id)';
     DB.FDQuery1.ParamByName('training_date').AsString := FormatDateTime('yyyy-mm-dd', RequestDate);
-    DB.FDQuery1.ParamByName('start_time').AsString := '18:00';
-    DB.FDQuery1.ParamByName('end_time').AsString := '19:00';
+    DB.FDQuery1.ParamByName('start_time').AsString := FormatDateTime('hh:nn', StartTimeValue);
+    DB.FDQuery1.ParamByName('end_time').AsString := FormatDateTime('hh:nn', EndTimeValue);
     DB.FDQuery1.ParamByName('status').AsString := 'Zahtev poslat';
     DB.FDQuery1.ParamByName('note').AsString := 'Zahtev clana iz mobilnog ekrana.';
     DB.FDQuery1.ParamByName('plan_id').AsInteger := FPlanId;
@@ -236,8 +306,8 @@ begin
       'INSERT INTO training (reservation_time, start_time, end_time, status, note, member_id, trainer_id, schedule_id) ' +
       'VALUES (:reservation_time, :start_time, :end_time, :status, :note, :member_id, :trainer_id, :schedule_id)';
     DB.FDQuery1.ParamByName('reservation_time').AsString := FormatDateTime('yyyy-mm-dd hh:nn', Now);
-    DB.FDQuery1.ParamByName('start_time').AsString := '18:00';
-    DB.FDQuery1.ParamByName('end_time').AsString := '19:00';
+    DB.FDQuery1.ParamByName('start_time').AsString := FormatDateTime('hh:nn', StartTimeValue);
+    DB.FDQuery1.ParamByName('end_time').AsString := FormatDateTime('hh:nn', EndTimeValue);
     DB.FDQuery1.ParamByName('status').AsString := 'Na cekanju';
     DB.FDQuery1.ParamByName('note').AsString := 'Clan je poslao zahtev za trening.';
     DB.FDQuery1.ParamByName('member_id').AsInteger := FMemberId;
@@ -246,11 +316,60 @@ begin
     DB.FDQuery1.ExecSQL;
 
     DB.FDConnection1.Commit;
-    lblStatus.Text := 'Zahtev je poslat i ceka odobrenje trenera.';
+    LoadLatestRequest;
   except
     DB.FDConnection1.Rollback;
     raise;
   end;
+end;
+
+procedure TFrmMemberHome.LoadLatestRequest;
+begin
+  edtDate.Text := FormatDateTime('yyyy-mm-dd', IncDay(Date, 1));
+  edtStartTime.Text := '18:00';
+  edtEndTime.Text := '19:00';
+  btnBack.Enabled := False;
+
+  if FMemberId = 0 then
+    Exit;
+
+  DB.FDQuery1.Close;
+  DB.FDQuery1.SQL.Text :=
+    'SELECT tr.status, s.training_date, s.start_time, s.end_time ' +
+    'FROM training tr JOIN schedule s ON s.schedule_id = tr.schedule_id ' +
+    'WHERE tr.member_id = :member_id ORDER BY tr.training_id DESC LIMIT 1';
+  DB.FDQuery1.ParamByName('member_id').AsInteger := FMemberId;
+  DB.FDQuery1.Open;
+  if not DB.FDQuery1.IsEmpty then
+  begin
+    edtDate.Text := DB.FDQuery1.FieldByName('training_date').AsString;
+    edtStartTime.Text := DB.FDQuery1.FieldByName('start_time').AsString;
+    edtEndTime.Text := DB.FDQuery1.FieldByName('end_time').AsString;
+    lblStatus.Text := 'Poslednji zahtev: ' +
+      DB.FDQuery1.FieldByName('status').AsString;
+    btnBack.Enabled :=
+      SameText(DB.FDQuery1.FieldByName('status').AsString, 'Na cekanju') or
+      SameText(DB.FDQuery1.FieldByName('status').AsString, 'Odobren');
+  end
+  else
+    lblStatus.Text := 'Zahtev nije poslat.';
+  DB.FDQuery1.Close;
+end;
+
+function TFrmMemberHome.ParseIsoDate(const AValue: string;
+  out ADate: TDateTime): Boolean;
+var
+  Year, Month, Day: Integer;
+begin
+  Result := False;
+  if Length(AValue) <> 10 then
+    Exit;
+  if (AValue[5] <> '-') or (AValue[8] <> '-') then
+    Exit;
+  Year := StrToIntDef(Copy(AValue, 1, 4), 0);
+  Month := StrToIntDef(Copy(AValue, 6, 2), 0);
+  Day := StrToIntDef(Copy(AValue, 9, 2), 0);
+  Result := TryEncodeDate(Year, Month, Day, ADate);
 end;
 
 procedure TFrmMemberHome.ToggleMenuClick(Sender: TObject);

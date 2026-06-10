@@ -1629,7 +1629,7 @@ object FrmMemberHome: TFrmMemberHome
   end
   object lblStatus: TLabel
     Position.X = 72.000000000000000000
-    Position.Y = 330.000000000000000000
+    Position.Y = 356.000000000000000000
     Size.Width = 260.000000000000000000
     Size.Height = 72.000000000000000000
     Size.PlatformDefault = False
@@ -1637,9 +1637,57 @@ object FrmMemberHome: TFrmMemberHome
     Text = 'Zahtev nije poslat.'
     TabOrder = 6
   end
+  object lblDate: TLabel
+    Position.X = 72.000000000000000000
+    Position.Y = 220.000000000000000000
+    Size.Width = 260.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Datum treninga (yyyy-mm-dd):'
+  end
+  object edtDate: TEdit
+    Position.X = 72.000000000000000000
+    Position.Y = 244.000000000000000000
+    Size.Width = 260.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+  end
+  object lblStartTime: TLabel
+    Position.X = 72.000000000000000000
+    Position.Y = 286.000000000000000000
+    Size.Width = 120.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Pocetak:'
+  end
+  object edtStartTime: TEdit
+    Position.X = 72.000000000000000000
+    Position.Y = 308.000000000000000000
+    Size.Width = 120.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+  end
+  object lblEndTime: TLabel
+    Position.X = 212.000000000000000000
+    Position.Y = 286.000000000000000000
+    Size.Width = 120.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    Text = 'Zavrsetak:'
+  end
+  object edtEndTime: TEdit
+    Position.X = 212.000000000000000000
+    Position.Y = 308.000000000000000000
+    Size.Width = 120.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 4
+  end
   object btnBack: TButton
     Position.X = 72.000000000000000000
-    Position.Y = 440.000000000000000000
+    Position.Y = 444.000000000000000000
     Size.Width = 112.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
@@ -1649,12 +1697,22 @@ object FrmMemberHome: TFrmMemberHome
   end
   object btnRequest: TButton
     Position.X = 204.000000000000000000
-    Position.Y = 440.000000000000000000
+    Position.Y = 444.000000000000000000
     Size.Width = 128.000000000000000000
     Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 1
     Text = 'Zakazi trening'
     OnClick = btnRequestClick
+  end
+  object btnRefreshStatus: TButton
+    Position.X = 138.000000000000000000
+    Position.Y = 500.000000000000000000
+    Size.Width = 128.000000000000000000
+    Size.Height = 38.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 5
+    Text = 'Osvezi status'
+    OnClick = btnRefreshStatusClick
   end
 end
