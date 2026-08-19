@@ -91,6 +91,7 @@ CREATE TABLE schedule (
     end_time TEXT NOT NULL,
     status TEXT,
     note TEXT,
+    change_count INTEGER NOT NULL DEFAULT 0,
     plan_id INTEGER NOT NULL,
     FOREIGN KEY(plan_id) REFERENCES plan_training(plan_id)
 );
@@ -153,11 +154,11 @@ INSERT INTO member(member_id, username, first_name, last_name, age, sex, phone, 
 (301, 'milica.jovanovic', 'Milica', 'Jovanovic', 28, 'Zenski', '+381641112244', 'milica.jovanovic@example.com', '2026-01-15', 'Aktivan', 'clan123'),
 (302, 'nikola.stankovic', 'Nikola', 'Stankovic', 41, 'Muski', '+381641112255', 'nikola.stankovic@example.com', '2026-01-22', 'Aktivan', 'clan123'),
 (303, 'jelena.petrovic', 'Jelena', 'Petrovic', 36, 'Zenski', '+381641112266', 'jelena.petrovic@example.com', '2026-02-01', 'Aktivan', 'clan123'),
-(304, 'marko.ilic', 'Marko', 'Ilic', 25, 'Muski', '+381641112277', 'marko.ilic@example.com', '2026-02-10', 'Pauziran', 'clan123'),
+(304, 'marko.ilic', 'Marko', 'Ilic', 25, 'Muski', '+381641112277', 'marko.ilic@example.com', '2026-02-10', 'Aktivan', 'clan123'),
 (305, 'ana.ristic', 'Ana', 'Ristic', 31, 'Zenski', '+381641112288', 'ana.ristic@example.com', '2026-02-18', 'Aktivan', 'clan123'),
 (306, 'stefan.djordjevic', 'Stefan', 'Djordjevic', 45, 'Muski', '+381641112299', 'stefan.djordjevic@example.com', '2026-03-03', 'Aktivan', 'clan123'),
 (307, 'katarina.popovic', 'Katarina', 'Popovic', 23, 'Zenski', '+381641112300', 'katarina.popovic@example.com', '2026-03-12', 'Aktivan', 'clan123'),
-(308, 'luka.pavlovic', 'Luka', 'Pavlovic', 39, 'Muski', '+381641112311', 'luka.pavlovic@example.com', '2026-03-21', 'Neaktivan', 'clan123'),
+(308, 'luka.pavlovic', 'Luka', 'Pavlovic', 39, 'Muski', '+381641112311', 'luka.pavlovic@example.com', '2026-03-21', 'Aktivan', 'clan123'),
 (309, 'sara.nikolic', 'Sara', 'Nikolic', 27, 'Zenski', '+381641112322', 'sara.nikolic@example.com', '2026-04-02', 'Aktivan', 'clan123');
 
 INSERT INTO trainer(trainer_id, username, first_name, last_name, phone, email, specialization, status, password) VALUES
@@ -169,7 +170,7 @@ INSERT INTO trainer(trainer_id, username, first_name, last_name, phone, email, s
 (405, 'katarina.popovic.trener', 'Katarina', 'Popovic', '+381601001006', 'katarina.popovic@fitmanager.rs', 'Rehabilitacioni trening', 'Aktivan', 'trener123'),
 (406, 'aleksa.djordjevic', 'Aleksa', 'Djordjevic', '+381601001007', 'aleksa.djordjevic@fitmanager.rs', 'Funkcionalni trening', 'Aktivan', 'trener123'),
 (407, 'mina.vasic', 'Mina', 'Vasic', '+381601001008', 'mina.vasic@fitmanager.rs', 'Korektivne vezbe', 'Aktivan', 'trener123'),
-(408, 'filip.tomic', 'Filip', 'Tomic', '+381601001009', 'filip.tomic@fitmanager.rs', 'Sportska priprema', 'Pauziran', 'trener123'),
+(408, 'filip.tomic', 'Filip', 'Tomic', '+381601001009', 'filip.tomic@fitmanager.rs', 'Sportska priprema', 'Aktivan', 'trener123'),
 (409, 'nina.zivkovic', 'Nina', 'Zivkovic', '+381601001010', 'nina.zivkovic@fitmanager.rs', 'Trening izdrzljivosti', 'Aktivan', 'trener123');
 
 INSERT INTO administrator VALUES
@@ -194,18 +195,18 @@ INSERT INTO training_room VALUES
 (903, 'Funkcionalna zona', 10, 'Aktivna');
 
 INSERT INTO plan_training VALUES
-(200, 'Osnovna snaga - Aleksandar', 'Sigurna tehnika cucnja, potiska i mrtvog dizanja', 16, 60, '2026-05-01', '2026-07-15', 'Aktivan', 100, 900, 300, 400),
-(201, 'Redukcija - Milica', 'Postepeno smanjenje masnog tkiva uz pracenje pulsa', 18, 50, '2026-05-01', '2026-07-20', 'Aktivan', 101, 902, 301, 404),
-(202, 'Hipertrofija - Nikola', 'Povecanje misicne mase uz progresivno opterecenje', 20, 65, '2026-05-02', '2026-08-01', 'Aktivan', 102, 900, 302, 400),
-(203, 'Kondicija - Jelena', 'Intervalni rad i stabilan napredak izdrzljivosti', 14, 45, '2026-05-02', '2026-07-05', 'Aktivan', 103, 902, 303, 402),
-(204, 'Pilates - Marko', 'Stabilnost trupa i rasterecenje donjih ledja', 12, 45, '2026-05-03', '2026-06-30', 'Pauziran', 104, 901, 304, 401),
-(205, 'Mobilnost - Ana', 'Rad na mobilnosti kukova i ramenog pojasa', 10, 40, '2026-05-03', '2026-06-25', 'Aktivan', 105, 901, 305, 405),
-(206, 'Funkcionalni rad - Stefan', 'Jacanje celog tela kroz pokrete vise zglobova', 16, 55, '2026-05-04', '2026-07-18', 'Aktivan', 106, 903, 306, 406),
-(207, 'Korektivni plan - Katarina', 'Posturalne vezbe i kontrola lopatica', 12, 45, '2026-05-04', '2026-07-01', 'Aktivan', 107, 901, 307, 407),
-(208, 'Sportska priprema - Luka', 'Eksplozivnost, agilnost i prevencija povreda', 18, 60, '2026-05-05', '2026-08-05', 'Neaktivan', 108, 903, 308, 408),
-(209, 'Kardio plan - Sara', 'Kontrolisani kardio i pracenje zone pulsa', 14, 45, '2026-05-05', '2026-07-12', 'Aktivan', 109, 902, 309, 409);
+(200, 'Osnovna snaga - Aleksandar', 'Sigurna tehnika cucnja, potiska i mrtvog dizanja', 16, 60, '2026-05-01', '2026-12-31', 'Aktivan', 100, 900, 300, 400),
+(201, 'Redukcija - Milica', 'Postepeno smanjenje masnog tkiva uz pracenje pulsa', 18, 50, '2026-05-01', '2026-12-31', 'Aktivan', 101, 902, 301, 404),
+(202, 'Hipertrofija - Nikola', 'Povecanje misicne mase uz progresivno opterecenje', 20, 65, '2026-05-02', '2026-12-31', 'Aktivan', 102, 900, 302, 400),
+(203, 'Kondicija - Jelena', 'Intervalni rad i stabilan napredak izdrzljivosti', 14, 45, '2026-05-02', '2026-12-31', 'Aktivan', 103, 902, 303, 402),
+(204, 'Pilates - Marko', 'Stabilnost trupa i rasterecenje donjih ledja', 12, 45, '2026-05-03', '2026-12-31', 'Aktivan', 104, 901, 304, 401),
+(205, 'Mobilnost - Ana', 'Rad na mobilnosti kukova i ramenog pojasa', 10, 40, '2026-05-03', '2026-12-31', 'Aktivan', 105, 901, 305, 405),
+(206, 'Funkcionalni rad - Stefan', 'Jacanje celog tela kroz pokrete vise zglobova', 16, 55, '2026-05-04', '2026-12-31', 'Aktivan', 106, 903, 306, 406),
+(207, 'Korektivni plan - Katarina', 'Posturalne vezbe i kontrola lopatica', 12, 45, '2026-05-04', '2026-12-31', 'Aktivan', 107, 901, 307, 407),
+(208, 'Sportska priprema - Luka', 'Eksplozivnost, agilnost i prevencija povreda', 18, 60, '2026-05-05', '2026-12-31', 'Aktivan', 108, 903, 308, 408),
+(209, 'Kardio plan - Sara', 'Kontrolisani kardio i pracenje zone pulsa', 14, 45, '2026-05-05', '2026-12-31', 'Aktivan', 109, 902, 309, 409);
 
-INSERT INTO schedule VALUES
+INSERT INTO schedule(schedule_id, training_date, start_time, end_time, status, note, plan_id) VALUES
 (500, '2026-05-11', '08:00', '09:00', 'Potvrdjen', 'Prvi termin za proveru tehnike', 200),
 (501, '2026-05-11', '09:15', '10:05', 'Potvrdjen', 'Kruzni trening niskog intenziteta', 201),
 (502, '2026-05-12', '10:00', '11:05', 'Potvrdjen', 'Gornji deo tela', 202),

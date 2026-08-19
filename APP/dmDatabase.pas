@@ -40,6 +40,9 @@ type
     procedure RebuildPlanTrainingForProgramDelete;
   public
     function AuthenticateUser(const ALogin, APassword: string): Boolean;
+    function IsResourceAvailable(ATrainerId, ARoomId: Integer;
+      const ATrainingDate, AStartTime, AEndTime: string;
+      AExcludeTrainingId: Integer = 0): Boolean;
     procedure InitializeDatabase;
     procedure ResetCurrentUser;
     function RegisterMemberUser(const AFirstName, ALastName, AUsername, APassword,
@@ -142,12 +145,13 @@ begin
   FDQuery1.SQL.Text :=
     'SELECT member_id, username, email FROM member ' +
     'WHERE (LOWER(TRIM(username)) = LOWER(:login_username) OR LOWER(TRIM(email)) = LOWER(:login_email)) ' +
-    'AND password = :password AND TRIM(status) = :status ' +
+    'AND password = :password AND TRIM(status) IN (:active_status, :paused_status) ' +
     'LIMIT 1';
   FDQuery1.ParamByName('login_username').AsString := LoginEmail;
   FDQuery1.ParamByName('login_email').AsString := LoginEmail;
   FDQuery1.ParamByName('password').AsString := APassword;
-  FDQuery1.ParamByName('status').AsString := 'Aktivan';
+  FDQuery1.ParamByName('active_status').AsString := 'Aktivan';
+  FDQuery1.ParamByName('paused_status').AsString := 'Pauziran';
   FDQuery1.Open;
   Result := not FDQuery1.IsEmpty;
   if Result then
@@ -242,7 +246,8 @@ const
     'FOREIGN KEY(trainer_id) REFERENCES trainer(trainer_id));'#13#10 +
     'CREATE TABLE IF NOT EXISTS schedule (' +
     'schedule_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, training_date TEXT NOT NULL, ' +
-    'start_time TEXT NOT NULL, end_time TEXT NOT NULL, status TEXT, note TEXT, plan_id INTEGER NOT NULL, ' +
+    'start_time TEXT NOT NULL, end_time TEXT NOT NULL, status TEXT, note TEXT, ' +
+    'change_count INTEGER NOT NULL DEFAULT 0, plan_id INTEGER NOT NULL, ' +
     'FOREIGN KEY(plan_id) REFERENCES plan_training(plan_id));'#13#10 +
     'CREATE TABLE IF NOT EXISTS training (' +
     'training_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, reservation_time TEXT NOT NULL, ' +
@@ -298,6 +303,10 @@ begin
   if ColumnIsRequired('plan_training', 'program_id') then
     RebuildPlanTrainingForProgramDelete;
 
+  if not ColumnExists('schedule', 'change_count') then
+    FDConnection1.ExecSQL(
+      'ALTER TABLE schedule ADD COLUMN change_count INTEGER NOT NULL DEFAULT 0');
+
   FDConnection1.ExecSQL(
     'CREATE TABLE IF NOT EXISTS training_room (' +
     'room_id INTEGER NOT NULL UNIQUE PRIMARY KEY AUTOINCREMENT, ' +
@@ -318,18 +327,59 @@ begin
     'initial_muscle_percent REAL NOT NULL, current_muscle_percent REAL NOT NULL, ' +
     'initial_calories INTEGER NOT NULL, current_calories INTEGER NOT NULL, ' +
     'FOREIGN KEY(member_id) REFERENCES member(member_id))');
-  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1000, 300, 102, 100, 187, 29.2, 28.6, 34, 36, 3240, 3120)');
-  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1001, 301, 78, 74, 168, 27.6, 26.2, 31, 33, 2450, 2300)');
-  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1002, 302, 86, 89, 182, 26.0, 26.9, 38, 40, 2980, 3200)');
-  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1003, 303, 68, 66, 171, 23.3, 22.6, 35, 36, 2180, 2100)');
-  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1004, 304, 91, 90, 179, 28.4, 28.1, 32, 33, 2860, 2800)');
-  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1005, 305, 64, 63, 170, 22.1, 21.8, 36, 38, 2100, 2050)');
-  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1006, 306, 95, 94, 188, 26.9, 26.6, 39, 40, 3100, 3050)');
-  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1007, 307, 59, 60, 166, 21.4, 21.8, 34, 35, 1980, 2020)');
-  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1008, 308, 106, 103, 195, 27.9, 27.1, 33, 35, 3300, 3180)');
-  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress VALUES (1009, 309, 72, 70, 174, 23.8, 23.1, 32, 34, 2260, 2180)');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress SELECT 1000, member_id, 102, 100, 187, 29.2, 28.6, 34, 36, 3240, 3120 FROM member WHERE username = ''aleksandar.markovic'' LIMIT 1');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress SELECT 1001, member_id, 78, 74, 168, 27.6, 26.2, 31, 33, 2450, 2300 FROM member WHERE username = ''milica.jovanovic'' LIMIT 1');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress SELECT 1002, member_id, 86, 89, 182, 26.0, 26.9, 38, 40, 2980, 3200 FROM member WHERE username = ''nikola.stankovic'' LIMIT 1');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress SELECT 1003, member_id, 68, 66, 171, 23.3, 22.6, 35, 36, 2180, 2100 FROM member WHERE username = ''jelena.petrovic'' LIMIT 1');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress SELECT 1004, member_id, 91, 90, 179, 28.4, 28.1, 32, 33, 2860, 2800 FROM member WHERE username = ''marko.ilic'' LIMIT 1');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress SELECT 1005, member_id, 64, 63, 170, 22.1, 21.8, 36, 38, 2100, 2050 FROM member WHERE username = ''ana.ristic'' LIMIT 1');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress SELECT 1006, member_id, 95, 94, 188, 26.9, 26.6, 39, 40, 3100, 3050 FROM member WHERE username = ''stefan.djordjevic'' LIMIT 1');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress SELECT 1007, member_id, 59, 60, 166, 21.4, 21.8, 34, 35, 1980, 2020 FROM member WHERE username = ''katarina.popovic'' LIMIT 1');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress SELECT 1008, member_id, 106, 103, 195, 27.9, 27.1, 33, 35, 3300, 3180 FROM member WHERE username = ''luka.pavlovic'' LIMIT 1');
+  FDConnection1.ExecSQL('INSERT OR IGNORE INTO member_progress SELECT 1009, member_id, 72, 70, 174, 23.8, 23.1, 32, 34, 2260, 2180 FROM member WHERE username = ''sara.nikolic'' LIMIT 1');
 
   EnsureLoginSchema;
+end;
+
+function TDB.IsResourceAvailable(ATrainerId, ARoomId: Integer;
+  const ATrainingDate, AStartTime, AEndTime: string;
+  AExcludeTrainingId: Integer): Boolean;
+var
+  Query: TFDQuery;
+begin
+  Result := False;
+  if (ATrainerId <= 0) or (ARoomId <= 0) then
+    Exit;
+
+  Query := TFDQuery.Create(nil);
+  try
+    Query.Connection := FDConnection1;
+    Query.SQL.Text :=
+      'SELECT COUNT(*) AS conflict_count, ' +
+      '(SELECT COUNT(*) FROM trainer t WHERE t.trainer_id = :trainer_id ' +
+      ' AND t.status = ''Aktivan'') AS trainer_active, ' +
+      '(SELECT COUNT(*) FROM training_room room WHERE room.room_id = :room_id ' +
+      ' AND room.status = ''Aktivna'') AS room_active FROM training tr ' +
+      'JOIN schedule s ON s.schedule_id = tr.schedule_id ' +
+      'JOIN plan_training p ON p.plan_id = s.plan_id ' +
+      'WHERE s.training_date = :training_date ' +
+      'AND tr.training_id <> :exclude_training_id ' +
+      'AND COALESCE(tr.status, '''') NOT IN (''Otkazan'', ''Odbijen'', ''Zavrsen'', ''Propusten'') ' +
+      'AND s.start_time < :end_time AND s.end_time > :start_time ' +
+      'AND (tr.trainer_id = :trainer_id OR p.room_id = :room_id)';
+    Query.ParamByName('training_date').AsString := ATrainingDate;
+    Query.ParamByName('exclude_training_id').AsInteger := AExcludeTrainingId;
+    Query.ParamByName('end_time').AsString := AEndTime;
+    Query.ParamByName('start_time').AsString := AStartTime;
+    Query.ParamByName('trainer_id').AsInteger := ATrainerId;
+    Query.ParamByName('room_id').AsInteger := ARoomId;
+    Query.Open;
+    Result := (Query.FieldByName('trainer_active').AsInteger = 1) and
+      (Query.FieldByName('room_active').AsInteger = 1) and
+      (Query.FieldByName('conflict_count').AsInteger = 0);
+  finally
+    Query.Free;
+  end;
 end;
 
 procedure TDB.EnsureLoginSchema;
@@ -356,8 +406,8 @@ begin
   FDConnection1.ExecSQL('UPDATE member SET username = LOWER(REPLACE(first_name || ''.'' || last_name, '' '', '''')) WHERE username IS NULL OR username = ''''');
   FDConnection1.ExecSQL('UPDATE trainer SET username = LOWER(REPLACE(first_name || ''.'' || last_name, '' '', '''')) WHERE username IS NULL OR username = ''''');
   FDConnection1.ExecSQL('UPDATE administrator SET username = ''admin'' WHERE username IS NULL OR username = ''''');
-  FDConnection1.ExecSQL('UPDATE member SET username = ''ana.ristic'', password = ''clan123'', status = ''Aktivan'' WHERE email = ''ana.ristic@example.com''');
-  FDConnection1.ExecSQL('UPDATE member SET username = ''aleksandar.markovic'', password = ''clan123'', status = ''Aktivan'' WHERE email = ''aleksandar.markovic@example.com''');
+  FDConnection1.ExecSQL('UPDATE member SET username = ''ana.ristic'', password = ''clan123'' WHERE email = ''ana.ristic@example.com''');
+  FDConnection1.ExecSQL('UPDATE member SET username = ''aleksandar.markovic'', password = ''clan123'' WHERE email = ''aleksandar.markovic@example.com''');
   FDConnection1.ExecSQL('UPDATE trainer SET username = ''milan.trifunovic'', password = ''trener123'', status = ''Aktivan'' WHERE email = ''milan.trifunovic@fitmanager.rs''');
   FDConnection1.ExecSQL('UPDATE member SET status = ''Neaktivan'' WHERE LOWER(TRIM(username)) = ''clan'' OR LOWER(TRIM(email)) = ''clan''');
   FDConnection1.ExecSQL(
@@ -523,7 +573,8 @@ end;
 function TDB.GetDatabaseFileName: string;
 begin
   {$IFDEF MSWINDOWS}
-  Result := '..\database\fitmanager.db';
+  Result := ExpandFileName(BuildPath(ExtractFilePath(ParamStr(0)),
+    '..\database\fitmanager.db'));
   {$ELSE}
   Result := BuildPath(System.IOUtils.TPath.GetDocumentsPath, 'fitmanager.db');
   {$ENDIF}
@@ -534,11 +585,17 @@ var
   CandidateFileName: string;
 begin
   {$IFDEF MSWINDOWS}
-  CandidateFileName := '..\database\create_database.sql';
+  CandidateFileName := ExpandFileName(BuildPath(ExtractFilePath(ParamStr(0)),
+    '..\database\create_database.sql'));
   if TFile.Exists(CandidateFileName) then
-    Result := CandidateFileName
-  else
-    Result := '';
+    Exit(CandidateFileName);
+
+  CandidateFileName := ExpandFileName(BuildPath(ExtractFilePath(ParamStr(0)),
+    '..\..\..\database\create_database.sql'));
+  if TFile.Exists(CandidateFileName) then
+    Exit(CandidateFileName);
+
+  Result := '';
   {$ELSE}
   CandidateFileName := BuildPath(System.IOUtils.TPath.GetDocumentsPath, 'create_database.sql');
   if TFile.Exists(CandidateFileName) then

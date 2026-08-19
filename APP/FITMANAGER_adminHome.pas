@@ -20,6 +20,7 @@ type
     procedure btnAddClick(Sender: TObject);
     procedure btnBackClick(Sender: TObject);
   private
+    FShowingReports: Boolean;
     FMenuButton: TButton;
     FMenuPanel: TRectangle;
     FLogoutButton: TButton;
@@ -29,12 +30,16 @@ type
     procedure AddHeaderRow;
     procedure AddProgramRow(const ATop: Single; AProgramId: Integer;
       const ATitle, AStatus: string);
+    procedure AddReportHeaderRow;
+    procedure AddReportRow(const ATop: Single; const ATrainer: string;
+      AEngagement, ACompleted, AMissed, AChanges: Integer);
     procedure DeleteProgram(AProgramId: Integer);
     procedure DeleteProgramClick(Sender: TObject);
     procedure EditProgramClick(Sender: TObject);
     procedure LoadTemplateBackground;
     procedure LogoutClick(Sender: TObject);
     procedure ToggleMenuClick(Sender: TObject);
+    procedure RefreshReports;
   public
     constructor Create(AOwner: TComponent); override;
     procedure RefreshPrograms;
@@ -50,9 +55,12 @@ uses
 constructor TFrmAdminHome.Create(AOwner: TComponent);
 begin
   inherited;
+  FShowingReports := False;
   LoadTemplateBackground;
   BuildLogoutMenu;
-  btnBack.Visible := False;
+  btnBack.Visible := True;
+  btnBack.Text := 'Izvestaji';
+  lblMessage.WordWrap := True;
   try
     DB.InitializeDatabase;
     RefreshPrograms;
@@ -60,6 +68,80 @@ begin
     on E: Exception do
       lblMessage.Text := 'Greska pri ucitavanju baze: ' + E.Message;
   end;
+end;
+
+procedure TFrmAdminHome.AddReportHeaderRow;
+const
+  Captions: array[0..4] of string = ('Trener', 'Ang.', 'Odr.', 'Izost.', 'Prom.');
+  Lefts: array[0..4] of Single = (4, 142, 186, 230, 276);
+  Widths: array[0..4] of Single = (134, 40, 40, 42, 46);
+var
+  Row: TRectangle;
+  Cell: TLabel;
+  I: Integer;
+begin
+  Row := TRectangle.Create(lyProgramsContent);
+  Row.Parent := lyProgramsContent;
+  Row.Position.X := 0;
+  Row.Position.Y := 0;
+  Row.Width := 326;
+  Row.Height := 32;
+  Row.Fill.Color := $FFB9C6FF;
+  Row.Stroke.Color := $00FFFFFF;
+  for I := 0 to 4 do
+  begin
+    Cell := TLabel.Create(Row);
+    Cell.Parent := Row;
+    Cell.Position.X := Lefts[I];
+    Cell.Position.Y := 5;
+    Cell.Width := Widths[I];
+    Cell.Height := 22;
+    Cell.TextSettings.Font.Size := 5.5;
+    Cell.TextSettings.Font.Style := [TFontStyle.fsBold];
+    Cell.TextSettings.HorzAlign := TTextAlign.Center;
+    Cell.Text := Captions[I];
+  end;
+end;
+
+procedure TFrmAdminHome.AddReportRow(const ATop: Single; const ATrainer: string;
+  AEngagement, ACompleted, AMissed, AChanges: Integer);
+var
+  Row: TRectangle;
+  TrainerLabel, EngagementLabel, CompletedLabel, MissedLabel, ChangesLabel: TLabel;
+
+  procedure ConfigureCell(ALabel: TLabel; ALeft, AWidth: Single; const AText: string);
+  begin
+    ALabel.Parent := Row;
+    ALabel.Position.X := ALeft;
+    ALabel.Position.Y := 5;
+    ALabel.Width := AWidth;
+    ALabel.Height := 42;
+    ALabel.TextSettings.Font.Size := 5.5;
+    ALabel.TextSettings.HorzAlign := TTextAlign.Center;
+    ALabel.TextSettings.VertAlign := TTextAlign.Center;
+    ALabel.WordWrap := True;
+    ALabel.Text := AText;
+  end;
+begin
+  Row := TRectangle.Create(lyProgramsContent);
+  Row.Parent := lyProgramsContent;
+  Row.Position.X := 0;
+  Row.Position.Y := ATop;
+  Row.Width := 326;
+  Row.Height := 52;
+  Row.Fill.Color := $FFE9EEFF;
+  Row.Stroke.Color := $00FFFFFF;
+
+  TrainerLabel := TLabel.Create(Row);
+  ConfigureCell(TrainerLabel, 4, 134, ATrainer);
+  EngagementLabel := TLabel.Create(Row);
+  ConfigureCell(EngagementLabel, 142, 40, IntToStr(AEngagement));
+  CompletedLabel := TLabel.Create(Row);
+  ConfigureCell(CompletedLabel, 186, 40, IntToStr(ACompleted));
+  MissedLabel := TLabel.Create(Row);
+  ConfigureCell(MissedLabel, 230, 42, IntToStr(AMissed));
+  ChangesLabel := TLabel.Create(Row);
+  ConfigureCell(ChangesLabel, 276, 46, IntToStr(AChanges));
 end;
 
 procedure TFrmAdminHome.BuildLogoutMenu;
@@ -214,9 +296,22 @@ end;
 
 procedure TFrmAdminHome.btnBackClick(Sender: TObject);
 begin
-  if Assigned(Application.MainForm) then
-    Application.MainForm.Show;
-  Close;
+  FShowingReports := not FShowingReports;
+  if FShowingReports then
+  begin
+    lblTitle.Text := 'Izvestaji realizacije';
+    btnBack.Text := 'Programi';
+    btnAdd.Visible := False;
+    RefreshReports;
+  end
+  else
+  begin
+    lblTitle.Text := 'Upravljanje programima';
+    btnBack.Text := 'Izvestaji';
+    btnAdd.Visible := True;
+    lblMessage.Text := '';
+    RefreshPrograms;
+  end;
 end;
 
 function TFrmAdminHome.BuildPath(const APath, AFileName: string): string;
@@ -270,7 +365,10 @@ end;
 procedure TFrmAdminHome.FormActivate(Sender: TObject);
 begin
   if Assigned(DB) and DB.FDConnection1.Connected then
-    RefreshPrograms;
+    if FShowingReports then
+      RefreshReports
+    else
+      RefreshPrograms;
 end;
 
 function TFrmAdminHome.FindAssetFile(const AFileName: string): string;
@@ -341,6 +439,72 @@ begin
 
   lyProgramsContent.Height := CHeaderHeight + (Index * CRowHeight);
   DB.FDQuery1.Close;
+end;
+
+procedure TFrmAdminHome.RefreshReports;
+const
+  CHeaderHeight = 32;
+  CRowHeight = 52;
+var
+  Index, TotalRecords, Completed, Missed, Changes: Integer;
+  AttendanceRate: Double;
+begin
+  while lyProgramsContent.ChildrenCount > 0 do
+    lyProgramsContent.Children[0].Free;
+  AddReportHeaderRow;
+
+  DB.FDQuery1.Close;
+  DB.FDQuery1.SQL.Text :=
+    'SELECT t.trainer_id, t.first_name, t.last_name, ' +
+    '(SELECT COUNT(*) FROM records r JOIN training tr ON tr.training_id = r.training_id ' +
+    ' WHERE tr.trainer_id = t.trainer_id AND r.status IN (''Zavrsen'', ''Propusten'')) AS engagement_count, ' +
+    '(SELECT COUNT(*) FROM records r JOIN training tr ON tr.training_id = r.training_id ' +
+    ' WHERE tr.trainer_id = t.trainer_id AND r.presence = 1 AND r.status = ''Zavrsen'') AS completed_count, ' +
+    '(SELECT COUNT(*) FROM records r JOIN training tr ON tr.training_id = r.training_id ' +
+    ' WHERE tr.trainer_id = t.trainer_id AND r.presence = 0 AND r.status = ''Propusten'') AS missed_count, ' +
+    '(SELECT COALESCE(SUM(s.change_count), 0) FROM schedule s ' +
+    ' JOIN training tr ON tr.schedule_id = s.schedule_id ' +
+    ' WHERE tr.trainer_id = t.trainer_id) AS change_total ' +
+    'FROM trainer t ORDER BY t.last_name, t.first_name';
+  DB.FDQuery1.Open;
+  Index := 0;
+  while not DB.FDQuery1.Eof do
+  begin
+    AddReportRow(CHeaderHeight + (Index * CRowHeight),
+      DB.FDQuery1.FieldByName('first_name').AsString + ' ' +
+      DB.FDQuery1.FieldByName('last_name').AsString,
+      DB.FDQuery1.FieldByName('engagement_count').AsInteger,
+      DB.FDQuery1.FieldByName('completed_count').AsInteger,
+      DB.FDQuery1.FieldByName('missed_count').AsInteger,
+      DB.FDQuery1.FieldByName('change_total').AsInteger);
+    Inc(Index);
+    DB.FDQuery1.Next;
+  end;
+  DB.FDQuery1.Close;
+  lyProgramsContent.Height := CHeaderHeight + (Index * CRowHeight);
+
+  DB.FDQuery1.SQL.Text :=
+    'SELECT COUNT(*) AS total_count, ' +
+    'COALESCE(SUM(CASE WHEN presence = 1 AND status = ''Zavrsen'' THEN 1 ELSE 0 END), 0) AS completed_count, ' +
+    'COALESCE(SUM(CASE WHEN presence = 0 AND status = ''Propusten'' THEN 1 ELSE 0 END), 0) AS missed_count ' +
+    'FROM records WHERE status IN (''Zavrsen'', ''Propusten'')';
+  DB.FDQuery1.Open;
+  TotalRecords := DB.FDQuery1.FieldByName('total_count').AsInteger;
+  Completed := DB.FDQuery1.FieldByName('completed_count').AsInteger;
+  Missed := DB.FDQuery1.FieldByName('missed_count').AsInteger;
+  DB.FDQuery1.Close;
+  DB.FDQuery1.SQL.Text := 'SELECT COALESCE(SUM(change_count), 0) AS change_total FROM schedule';
+  DB.FDQuery1.Open;
+  Changes := DB.FDQuery1.FieldByName('change_total').AsInteger;
+  DB.FDQuery1.Close;
+
+  if TotalRecords > 0 then
+    AttendanceRate := Completed * 100.0 / TotalRecords
+  else
+    AttendanceRate := 0;
+  lblMessage.Text := Format(
+    'Evidencije: %d | Odrzani: %d | Izostanci: %d | Dolasci: %.1f%% | Promene: %d',
+    [TotalRecords, Completed, Missed, AttendanceRate, Changes]);
 end;
 
 procedure TFrmAdminHome.ToggleMenuClick(Sender: TObject);

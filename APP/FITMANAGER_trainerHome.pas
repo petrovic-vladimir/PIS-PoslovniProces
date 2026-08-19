@@ -34,7 +34,7 @@ type
     procedure BuildLogoutMenu;
     function FindAssetFile(const AFileName: string): string;
     procedure AddMemberCard(const ALeft, ATop: Single; const AName, APlanTitle,
-      AGoal: string; AMemberId: Integer);
+      AGoal, AStatus: string; AMemberId: Integer);
     procedure MemberCardClick(Sender: TObject);
     procedure LoadMemberCards;
     procedure LoadTemplateBackground;
@@ -107,10 +107,10 @@ begin
 end;
 
 procedure TFrmTrainerHome.AddMemberCard(const ALeft, ATop: Single;
-  const AName, APlanTitle, AGoal: string; AMemberId: Integer);
+  const AName, APlanTitle, AGoal, AStatus: string; AMemberId: Integer);
 var
   Card: TRectangle;
-  NameLabel, PlanLabel, GoalLabel: TLabel;
+  NameLabel, PlanLabel, GoalLabel, StatusLabel: TLabel;
 begin
   Card := TRectangle.Create(lyMembersContent);
   Card.Parent := lyMembersContent;
@@ -148,13 +148,24 @@ begin
   PlanLabel.WordWrap := True;
   PlanLabel.TextSettings.Font.Size := 9;
 
+  StatusLabel := TLabel.Create(Card);
+  StatusLabel.Parent := Card;
+  StatusLabel.HitTest := False;
+  StatusLabel.Position.X := 10;
+  StatusLabel.Position.Y := 76;
+  StatusLabel.Width := 252;
+  StatusLabel.Height := 22;
+  StatusLabel.Text := 'Status clana: ' + AStatus;
+  StatusLabel.TextSettings.Font.Size := 9;
+  StatusLabel.TextSettings.Font.Style := [TFontStyle.fsBold];
+
   GoalLabel := TLabel.Create(Card);
   GoalLabel.Parent := Card;
   GoalLabel.HitTest := False;
   GoalLabel.Position.X := 10;
-  GoalLabel.Position.Y := 78;
+  GoalLabel.Position.Y := 102;
   GoalLabel.Width := 252;
-  GoalLabel.Height := 70;
+  GoalLabel.Height := 46;
   GoalLabel.Text := 'Cilj: ' + AGoal;
   GoalLabel.WordWrap := True;
   GoalLabel.TextSettings.Font.Size := 9;
@@ -292,11 +303,16 @@ begin
 
   DB.FDQuery1.Close;
   DB.FDQuery1.SQL.Text :=
-    'SELECT m.member_id, m.first_name, m.last_name, p.title AS plan_title, p.goal ' +
+    'SELECT m.member_id, m.first_name, m.last_name, m.status AS member_status, ' +
+    'p.title AS plan_title, p.goal ' +
     'FROM member m ' +
-    'JOIN plan_training p ON p.member_id = m.member_id ' +
-    'WHERE p.trainer_id = :trainer_id ' +
+    'LEFT JOIN plan_training p ON p.plan_id = (' +
+    'SELECT p2.plan_id FROM plan_training p2 WHERE p2.member_id = m.member_id ' +
+    'ORDER BY CASE WHEN p2.status = ''Aktivan'' THEN 0 ELSE 1 END, p2.plan_id DESC LIMIT 1) ' +
+    'WHERE ((p.plan_id IS NULL AND m.status = :active_status) ' +
+    'OR p.trainer_id = :trainer_id) ' +
     'ORDER BY m.member_id';
+  DB.FDQuery1.ParamByName('active_status').AsString := 'Aktivan';
   DB.FDQuery1.ParamByName('trainer_id').AsInteger := FTrainerId;
   DB.FDQuery1.Open;
 
@@ -319,6 +335,7 @@ begin
       PlanTitle := 'Plan nije definisan';
 
     AddMemberCard(CardLeft, CardTop, FullName, PlanTitle, Goal,
+      DB.FDQuery1.FieldByName('member_status').AsString,
       DB.FDQuery1.FieldByName('member_id').AsInteger);
 
     Inc(Index);
@@ -382,7 +399,8 @@ end;
 
 procedure TFrmTrainerHome.UpdateFirstRequestStatus(const AStatus: string);
 var
-  ScheduleId: Integer;
+  ScheduleId, RoomId: Integer;
+  TrainingDate, StartTime, EndTime: string;
 begin
   if FFirstRequestId = 0 then
   begin
@@ -392,11 +410,26 @@ begin
 
   DB.FDQuery1.Close;
   DB.FDQuery1.SQL.Text :=
-    'SELECT schedule_id FROM training WHERE training_id = :training_id';
+    'SELECT tr.schedule_id, s.training_date, s.start_time, s.end_time, p.room_id ' +
+    'FROM training tr JOIN schedule s ON s.schedule_id = tr.schedule_id ' +
+    'JOIN plan_training p ON p.plan_id = s.plan_id ' +
+    'WHERE tr.training_id = :training_id';
   DB.FDQuery1.ParamByName('training_id').AsInteger := FFirstRequestId;
   DB.FDQuery1.Open;
   ScheduleId := DB.FDQuery1.FieldByName('schedule_id').AsInteger;
+  TrainingDate := DB.FDQuery1.FieldByName('training_date').AsString;
+  StartTime := DB.FDQuery1.FieldByName('start_time').AsString;
+  EndTime := DB.FDQuery1.FieldByName('end_time').AsString;
+  RoomId := DB.FDQuery1.FieldByName('room_id').AsInteger;
   DB.FDQuery1.Close;
+
+  if SameText(AStatus, 'Odobren') and
+     not DB.IsResourceAvailable(FTrainerId, RoomId, TrainingDate,
+       StartTime, EndTime, FFirstRequestId) then
+  begin
+    lblRequests.Text := 'Zahtev nije odobren: trener ili sala vise nisu slobodni.';
+    Exit;
+  end;
 
   DB.FDConnection1.StartTransaction;
   try

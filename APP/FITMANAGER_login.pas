@@ -65,6 +65,18 @@ begin
   if TFile.Exists(Candidate) then
     Exit(Candidate);
 
+  {$IFDEF MSWINDOWS}
+  Candidate := ExpandFileName(BuildPath(
+    BuildPath(ExtractFilePath(ParamStr(0)), '..\..\assets'), AFileName));
+  if TFile.Exists(Candidate) then
+    Exit(Candidate);
+
+  Candidate := ExpandFileName(BuildPath(
+    BuildPath(GetCurrentDir, 'assets'), AFileName));
+  if TFile.Exists(Candidate) then
+    Exit(Candidate);
+  {$ENDIF}
+
   Candidate := BuildPath(System.IOUtils.TPath.GetDocumentsPath, AFileName);
   if TFile.Exists(Candidate) then
     Exit(Candidate);
@@ -76,7 +88,9 @@ procedure TFrmLogin.LoadTemplateBackground;
 var
   FileName: string;
 begin
-  FileName := FindAssetFile('login_template.png');
+  FileName := FindAssetFile('login_template_clean.png');
+  if FileName = '' then
+    FileName := FindAssetFile('login_template.png');
   if FileName <> '' then
     imgBackground.Bitmap.LoadFromFile(FileName);
 end;

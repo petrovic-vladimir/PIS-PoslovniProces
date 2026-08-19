@@ -38,6 +38,14 @@ type
     FTrainerId: Integer;
     FSelectedTrainingId: Integer;
     FSelectedScheduleId: Integer;
+    FRoomId: Integer;
+    FPlanStartDate: string;
+    FPlanEndDate: string;
+    FOriginalDate: string;
+    FOriginalStart: string;
+    FOriginalEnd: string;
+    FPresentCheck: TCheckBox;
+    procedure BuildEvidenceControls;
     procedure AddTrainingCard(const ATop: Single; ATrainingId: Integer;
       const ACaption, AStatus: string);
     procedure LoadReports;
@@ -62,9 +70,31 @@ begin
   FTrainerId := DB.CurrentTrainerId;
   FSelectedTrainingId := 0;
   FSelectedScheduleId := 0;
+  FRoomId := 0;
+  BuildEvidenceControls;
   DB.InitializeDatabase;
   RefreshTrainings;
   LoadReports;
+end;
+
+procedure TFrmTrainingOperations.BuildEvidenceControls;
+begin
+  FPresentCheck := TCheckBox.Create(Self);
+  FPresentCheck.Parent := Self;
+  FPresentCheck.Position.X := 48;
+  FPresentCheck.Position.Y := 512;
+  FPresentCheck.Width := 294;
+  FPresentCheck.Height := 24;
+  FPresentCheck.Text := 'Clan je prisustvovao treningu';
+  FPresentCheck.IsChecked := True;
+
+  btnSaveTerm.Position.Y := btnSaveTerm.Position.Y + 28;
+  btnStart.Position.Y := btnStart.Position.Y + 28;
+  btnFinish.Position.Y := btnFinish.Position.Y + 28;
+  lblMessage.Position.Y := lblMessage.Position.Y + 28;
+  lblReportsTitle.Position.Y := lblReportsTitle.Position.Y + 28;
+  lblReports.Position.Y := lblReports.Position.Y + 28;
+  lblReports.Height := 92;
 end;
 
 procedure TFrmTrainingOperations.AddTrainingCard(const ATop: Single;
@@ -117,7 +147,9 @@ end;
 procedure TFrmTrainingOperations.btnFinishClick(Sender: TObject);
 var
   RecordId: Integer;
-  MemberName, TrainingDate, StartTime, EndTime: string;
+  Presence: Integer;
+  FinalStatus: string;
+  MemberName, TrainingDate, StartTime, EndTime, CurrentStatus, EvidenceNote: string;
 begin
   if FSelectedTrainingId = 0 then
   begin
@@ -128,7 +160,8 @@ begin
   DB.FDQuery1.Close;
   DB.FDQuery1.SQL.Text :=
     'SELECT m.first_name || '' '' || m.last_name AS member_name, ' +
-    's.training_date, s.start_time, s.end_time ' +
+    's.training_date, s.start_time, s.end_time, tr.status, ' +
+    '(SELECT COUNT(*) FROM records r WHERE r.training_id = tr.training_id) AS record_count ' +
     'FROM training tr JOIN member m ON m.member_id = tr.member_id ' +
     'JOIN schedule s ON s.schedule_id = tr.schedule_id ' +
     'WHERE tr.training_id = :training_id';
@@ -139,24 +172,57 @@ begin
     DB.FDQuery1.Close;
     Exit;
   end;
+  if DB.FDQuery1.FieldByName('record_count').AsInteger > 0 then
+  begin
+    DB.FDQuery1.Close;
+    lblMessage.Text := 'Ovaj trening je vec evidentiran.';
+    Exit;
+  end;
   MemberName := DB.FDQuery1.FieldByName('member_name').AsString;
   TrainingDate := DB.FDQuery1.FieldByName('training_date').AsString;
   StartTime := DB.FDQuery1.FieldByName('start_time').AsString;
   EndTime := DB.FDQuery1.FieldByName('end_time').AsString;
+  CurrentStatus := DB.FDQuery1.FieldByName('status').AsString;
   DB.FDQuery1.Close;
+
+  if FPresentCheck.IsChecked and not SameText(CurrentStatus, 'U toku') then
+  begin
+    lblMessage.Text := 'Prisutan trening prvo pokreni, pa ga zatim evidentiraj.';
+    Exit;
+  end;
+  if (not FPresentCheck.IsChecked) and
+     not (SameText(CurrentStatus, 'Odobren') or SameText(CurrentStatus, 'Zakazan') or
+          SameText(CurrentStatus, 'U toku')) then
+  begin
+    lblMessage.Text := 'Izabrani trening nije spreman za evidenciju.';
+    Exit;
+  end;
+
+  if FPresentCheck.IsChecked then
+  begin
+    Presence := 1;
+    FinalStatus := 'Zavrsen';
+    EvidenceNote := 'Prisutan. ' + Trim(memNote.Text);
+  end
+  else
+  begin
+    Presence := 0;
+    FinalStatus := 'Propusten';
+    EvidenceNote := 'Clan nije prisustvovao. ' + Trim(memNote.Text);
+  end;
 
   DB.FDConnection1.StartTransaction;
   try
     DB.FDConnection1.ExecSQL(
-      'UPDATE training SET status = ''Zavrsen'', note = ? WHERE training_id = ?',
-      [Trim(memNote.Text), FSelectedTrainingId]);
+      'UPDATE training SET status = ?, note = ? WHERE training_id = ?',
+      [FinalStatus, Trim(memNote.Text), FSelectedTrainingId]);
     DB.FDConnection1.ExecSQL(
-      'UPDATE schedule SET status = ''Zavrsen'' WHERE schedule_id = ?',
-      [FSelectedScheduleId]);
+      'UPDATE schedule SET status = ? WHERE schedule_id = ?',
+      [FinalStatus, FSelectedScheduleId]);
     DB.FDConnection1.ExecSQL(
       'INSERT INTO records(presence, status, trainer_note, record_date, record_time, training_id) ' +
-      'VALUES (1, ''Zavrsen'', ?, ?, ?, ?)',
-      [Trim(memNote.Text), FormatDateTime('yyyy-mm-dd', Date),
+      'VALUES (?, ?, ?, ?, ?, ?)',
+      [Presence, FinalStatus, Trim(memNote.Text), FormatDateTime('yyyy-mm-dd', Date),
        FormatDateTime('hh:nn', Time), FSelectedTrainingId]);
 
     DB.FDQuery1.SQL.Text := 'SELECT last_insert_rowid() AS new_id';
@@ -169,9 +235,9 @@ begin
       'VALUES (?, ''Realizacija'', ?, ?, ?, ?, ?)',
       ['Izvestaj - ' + MemberName, TrainingDate + ' ' + StartTime,
        TrainingDate + ' ' + EndTime, FormatDateTime('yyyy-mm-dd', Date),
-       Trim(memNote.Text), RecordId]);
+       EvidenceNote, RecordId]);
     DB.FDConnection1.Commit;
-    lblMessage.Text := 'Trening je zavrsen, evidentiran i dodat u izvestaje.';
+    lblMessage.Text := 'Trening je evidentiran (' + FinalStatus + ') i dodat u izvestaje.';
   except
     on E: Exception do
     begin
@@ -191,23 +257,36 @@ begin
 end;
 
 procedure TFrmTrainingOperations.btnSaveTermClick(Sender: TObject);
+var
+  TermChanged: Boolean;
 begin
   if (FSelectedTrainingId = 0) or not ValidateTerm then
     Exit;
 
   DB.FDConnection1.StartTransaction;
   try
-    DB.FDConnection1.ExecSQL(
-      'UPDATE schedule SET training_date = ?, start_time = ?, end_time = ?, note = ? ' +
-      'WHERE schedule_id = ?',
-      [Trim(edtDate.Text), Trim(edtStart.Text), Trim(edtEnd.Text),
-       Trim(memNote.Text), FSelectedScheduleId]);
+    TermChanged := (Trim(edtDate.Text) <> FOriginalDate) or
+      (Trim(edtStart.Text) <> FOriginalStart) or
+      (Trim(edtEnd.Text) <> FOriginalEnd);
+    if TermChanged then
+      DB.FDConnection1.ExecSQL(
+        'UPDATE schedule SET training_date = ?, start_time = ?, end_time = ?, note = ?, ' +
+        'change_count = change_count + 1 WHERE schedule_id = ?',
+        [Trim(edtDate.Text), Trim(edtStart.Text), Trim(edtEnd.Text),
+         Trim(memNote.Text), FSelectedScheduleId])
+    else
+      DB.FDConnection1.ExecSQL(
+        'UPDATE schedule SET note = ? WHERE schedule_id = ?',
+        [Trim(memNote.Text), FSelectedScheduleId]);
     DB.FDConnection1.ExecSQL(
       'UPDATE training SET start_time = ?, end_time = ?, note = ? WHERE training_id = ?',
       [Trim(edtStart.Text), Trim(edtEnd.Text), Trim(memNote.Text),
        FSelectedTrainingId]);
     DB.FDConnection1.Commit;
-    lblMessage.Text := 'Termin je azuriran.';
+    if TermChanged then
+      lblMessage.Text := 'Termin je promenjen i promena je evidentirana.'
+    else
+      lblMessage.Text := 'Napomena je azurirana.';
   except
     on E: Exception do
     begin
@@ -270,8 +349,10 @@ begin
   DB.FDQuery1.Close;
   DB.FDQuery1.SQL.Text :=
     'SELECT tr.schedule_id, tr.status, tr.note, s.training_date, s.start_time, s.end_time, ' +
+    'p.room_id, p.start_date AS plan_start_date, p.end_date AS plan_end_date, ' +
     'm.first_name, m.last_name FROM training tr ' +
     'JOIN schedule s ON s.schedule_id = tr.schedule_id ' +
+    'JOIN plan_training p ON p.plan_id = s.plan_id ' +
     'JOIN member m ON m.member_id = tr.member_id ' +
     'WHERE tr.training_id = :training_id';
   DB.FDQuery1.ParamByName('training_id').AsInteger := FSelectedTrainingId;
@@ -286,11 +367,20 @@ begin
     edtDate.Text := DB.FDQuery1.FieldByName('training_date').AsString;
     edtStart.Text := DB.FDQuery1.FieldByName('start_time').AsString;
     edtEnd.Text := DB.FDQuery1.FieldByName('end_time').AsString;
+    FOriginalDate := edtDate.Text;
+    FOriginalStart := edtStart.Text;
+    FOriginalEnd := edtEnd.Text;
+    FRoomId := DB.FDQuery1.FieldByName('room_id').AsInteger;
+    FPlanStartDate := DB.FDQuery1.FieldByName('plan_start_date').AsString;
+    FPlanEndDate := DB.FDQuery1.FieldByName('plan_end_date').AsString;
     memNote.Text := DB.FDQuery1.FieldByName('note').AsString;
+    FPresentCheck.IsChecked := True;
     btnStart.Enabled := SameText(Status, 'Odobren') or SameText(Status, 'Zakazan');
-    btnFinish.Enabled := SameText(Status, 'U toku');
+    btnFinish.Enabled := SameText(Status, 'U toku') or
+      SameText(Status, 'Odobren') or SameText(Status, 'Zakazan');
     btnSaveTerm.Enabled := not SameText(Status, 'Zavrsen') and
-      not SameText(Status, 'Otkazan') and not SameText(Status, 'Odbijen');
+      not SameText(Status, 'Propusten') and not SameText(Status, 'Otkazan') and
+      not SameText(Status, 'Odbijen');
   end;
   DB.FDQuery1.Close;
 end;
@@ -302,6 +392,7 @@ var
 begin
   FSelectedTrainingId := 0;
   FSelectedScheduleId := 0;
+  FRoomId := 0;
   lblSelected.Text := 'Izaberi trening iz liste';
   btnSaveTerm.Enabled := False;
   btnStart.Enabled := False;
@@ -381,6 +472,18 @@ begin
   if EndValue <= StartValue then
   begin
     lblMessage.Text := 'Zavrsetak mora biti posle pocetka.';
+    Exit;
+  end;
+  if (DateText < FPlanStartDate) or (DateText > FPlanEndDate) then
+  begin
+    lblMessage.Text := Format('Termin mora biti u periodu plana (%s - %s).',
+      [FPlanStartDate, FPlanEndDate]);
+    Exit;
+  end;
+  if not DB.IsResourceAvailable(FTrainerId, FRoomId, DateText,
+    Trim(edtStart.Text), Trim(edtEnd.Text), FSelectedTrainingId) then
+  begin
+    lblMessage.Text := 'Trener ili sala nisu slobodni u izabranom terminu.';
     Exit;
   end;
   Result := True;

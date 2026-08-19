@@ -30,12 +30,18 @@ type
     FMemberId: Integer;
     FTrainerId: Integer;
     FPlanId: Integer;
+    FRoomId: Integer;
+    FMaxTrainingCount: Integer;
+    FPlanStartDate: string;
+    FPlanEndDate: string;
+    FMemberStatus: string;
     FMenuButton: TButton;
     FMenuPanel: TRectangle;
     FLogoutButton: TButton;
     function BuildPath(const APath, AFileName: string): string;
     procedure BuildLogoutMenu;
     function FindAssetFile(const AFileName: string): string;
+    procedure ApplyMemberStatusAccess;
     procedure LoadMemberContext;
     procedure LoadLatestRequest;
     procedure LoadTemplateBackground;
@@ -43,6 +49,7 @@ type
     function ParseIsoDate(const AValue: string; out ADate: TDateTime): Boolean;
     procedure SendTrainingRequest;
     procedure ToggleMenuClick(Sender: TObject);
+    function RefreshMemberStatus: Boolean;
   public
     constructor Create(AOwner: TComponent); override;
   end;
@@ -147,7 +154,18 @@ end;
 
 procedure TFrmMemberHome.btnRefreshStatusClick(Sender: TObject);
 begin
-  LoadLatestRequest;
+  LoadMemberContext;
+end;
+
+procedure TFrmMemberHome.ApplyMemberStatusAccess;
+var
+  IsActive: Boolean;
+begin
+  IsActive := SameText(FMemberStatus, 'Aktivan');
+  edtDate.Enabled := IsActive;
+  edtStartTime.Enabled := IsActive;
+  edtEndTime.Enabled := IsActive;
+  btnRequest.Enabled := IsActive;
 end;
 
 function TFrmMemberHome.BuildPath(const APath, AFileName: string): string;
@@ -188,6 +206,11 @@ begin
   FMemberId := 0;
   FTrainerId := 0;
   FPlanId := 0;
+  FRoomId := 0;
+  FMaxTrainingCount := 0;
+  FPlanStartDate := '';
+  FPlanEndDate := '';
+  FMemberStatus := '';
 
   DB.FDQuery1.Close;
   if DB.CurrentMemberId > 0 then
@@ -211,60 +234,62 @@ begin
     lblInfo.Text := Format('%s %s',
       [DB.FDQuery1.FieldByName('first_name').AsString,
        DB.FDQuery1.FieldByName('last_name').AsString]);
-    lblMemberStatus.Text := 'Status: ' + DB.FDQuery1.FieldByName('status').AsString;
+    FMemberStatus := DB.FDQuery1.FieldByName('status').AsString;
+    lblMemberStatus.Text := 'Status clana: ' + FMemberStatus;
   end;
 
   DB.FDQuery1.Close;
   DB.FDQuery1.SQL.Text :=
-    'SELECT p.plan_id, p.title, p.goal, p.duration_minutes, p.trainer_id, ' +
+    'SELECT p.plan_id, p.title, p.goal, p.duration_minutes, p.trainer_id, p.room_id, ' +
+    'p.max_training_count, p.start_date, p.end_date, ' +
     'pr.title AS program_title, t.first_name AS trainer_first_name, ' +
     't.last_name AS trainer_last_name, t.specialization ' +
     'FROM plan_training p ' +
     'LEFT JOIN program_training pr ON pr.program_id = p.program_id ' +
     'JOIN trainer t ON t.trainer_id = p.trainer_id ' +
-    'WHERE p.member_id = :member_id ORDER BY p.plan_id LIMIT 1';
+    'WHERE p.member_id = :member_id AND p.status = :plan_status ' +
+    'ORDER BY p.plan_id DESC LIMIT 1';
   DB.FDQuery1.ParamByName('member_id').AsInteger := FMemberId;
+  DB.FDQuery1.ParamByName('plan_status').AsString := 'Aktivan';
   DB.FDQuery1.Open;
   if not DB.FDQuery1.IsEmpty then
   begin
     FPlanId := DB.FDQuery1.FieldByName('plan_id').AsInteger;
     FTrainerId := DB.FDQuery1.FieldByName('trainer_id').AsInteger;
+    FRoomId := DB.FDQuery1.FieldByName('room_id').AsInteger;
+    FMaxTrainingCount := DB.FDQuery1.FieldByName('max_training_count').AsInteger;
+    FPlanStartDate := DB.FDQuery1.FieldByName('start_date').AsString;
+    FPlanEndDate := DB.FDQuery1.FieldByName('end_date').AsString;
   end
   else
     lblStatus.Text := 'Clan jos nema dodeljen plan treninga.';
 
   DB.FDQuery1.Close;
   LoadLatestRequest;
+  ApplyMemberStatusAccess;
 end;
 
 procedure TFrmMemberHome.SendTrainingRequest;
 var
   ScheduleId: Integer;
+  ExistingTrainingCount: Integer;
+  RequestDateText: string;
   RequestDate: TDateTime;
   StartTimeValue, EndTimeValue: TDateTime;
 begin
+  if not RefreshMemberStatus then
+  begin
+    ApplyMemberStatusAccess;
+    lblStatus.Text := 'Nalog ima status "' + FMemberStatus +
+      '". Novi trening nije moguce zakazati.';
+    Exit;
+  end;
+
   if (FMemberId = 0) or (FTrainerId = 0) or (FPlanId = 0) then
   begin
     lblStatus.Text := 'Nije moguce poslati zahtev jer clan, trener ili plan nisu pronadjeni.';
     Exit;
   end;
-
-  DB.FDQuery1.Close;
-  DB.FDQuery1.SQL.Text :=
-    'SELECT 1 FROM training WHERE member_id = :member_id ' +
-    'AND status IN (:pending, :approved, :active) LIMIT 1';
-  DB.FDQuery1.ParamByName('member_id').AsInteger := FMemberId;
-  DB.FDQuery1.ParamByName('pending').AsString := 'Na cekanju';
-  DB.FDQuery1.ParamByName('approved').AsString := 'Odobren';
-  DB.FDQuery1.ParamByName('active').AsString := 'U toku';
-  DB.FDQuery1.Open;
-  if not DB.FDQuery1.IsEmpty then
-  begin
-    DB.FDQuery1.Close;
-    lblStatus.Text := 'Vec postoji aktivan zahtev ili trening.';
-    Exit;
-  end;
-  DB.FDQuery1.Close;
 
   if not ParseIsoDate(Trim(edtDate.Text), RequestDate) then
   begin
@@ -283,13 +308,44 @@ begin
     Exit;
   end;
 
+  RequestDateText := FormatDateTime('yyyy-mm-dd', RequestDate);
+  if (RequestDateText < FPlanStartDate) or (RequestDateText > FPlanEndDate) then
+  begin
+    lblStatus.Text := Format('Termin mora biti u periodu plana (%s - %s).',
+      [FPlanStartDate, FPlanEndDate]);
+    Exit;
+  end;
+
+  DB.FDQuery1.Close;
+  DB.FDQuery1.SQL.Text :=
+    'SELECT COUNT(*) AS training_count FROM schedule ' +
+    'WHERE plan_id = :plan_id AND COALESCE(status, '''') NOT IN (:cancelled, :declined)';
+  DB.FDQuery1.ParamByName('plan_id').AsInteger := FPlanId;
+  DB.FDQuery1.ParamByName('cancelled').AsString := 'Otkazan';
+  DB.FDQuery1.ParamByName('declined').AsString := 'Odbijen';
+  DB.FDQuery1.Open;
+  ExistingTrainingCount := DB.FDQuery1.FieldByName('training_count').AsInteger;
+  DB.FDQuery1.Close;
+  if ExistingTrainingCount >= FMaxTrainingCount then
+  begin
+    lblStatus.Text := 'Planirani broj treninga je vec dostignut.';
+    Exit;
+  end;
+
+  if not DB.IsResourceAvailable(FTrainerId, FRoomId, RequestDateText,
+    FormatDateTime('hh:nn', StartTimeValue), FormatDateTime('hh:nn', EndTimeValue)) then
+  begin
+    lblStatus.Text := 'Trener ili sala nisu slobodni u izabranom terminu.';
+    Exit;
+  end;
+
   DB.FDConnection1.StartTransaction;
   try
     DB.FDQuery1.Close;
     DB.FDQuery1.SQL.Text :=
       'INSERT INTO schedule (training_date, start_time, end_time, status, note, plan_id) ' +
       'VALUES (:training_date, :start_time, :end_time, :status, :note, :plan_id)';
-    DB.FDQuery1.ParamByName('training_date').AsString := FormatDateTime('yyyy-mm-dd', RequestDate);
+    DB.FDQuery1.ParamByName('training_date').AsString := RequestDateText;
     DB.FDQuery1.ParamByName('start_time').AsString := FormatDateTime('hh:nn', StartTimeValue);
     DB.FDQuery1.ParamByName('end_time').AsString := FormatDateTime('hh:nn', EndTimeValue);
     DB.FDQuery1.ParamByName('status').AsString := 'Zahtev poslat';
@@ -323,6 +379,26 @@ begin
   end;
 end;
 
+function TFrmMemberHome.RefreshMemberStatus: Boolean;
+begin
+  Result := False;
+  if FMemberId = 0 then
+    Exit;
+
+  DB.FDQuery1.Close;
+  DB.FDQuery1.SQL.Text :=
+    'SELECT status FROM member WHERE member_id = :member_id LIMIT 1';
+  DB.FDQuery1.ParamByName('member_id').AsInteger := FMemberId;
+  DB.FDQuery1.Open;
+  if not DB.FDQuery1.IsEmpty then
+  begin
+    FMemberStatus := DB.FDQuery1.FieldByName('status').AsString;
+    lblMemberStatus.Text := 'Status clana: ' + FMemberStatus;
+    Result := SameText(FMemberStatus, 'Aktivan');
+  end;
+  DB.FDQuery1.Close;
+end;
+
 procedure TFrmMemberHome.LoadLatestRequest;
 begin
   edtDate.Text := FormatDateTime('yyyy-mm-dd', IncDay(Date, 1));
@@ -332,6 +408,11 @@ begin
 
   if FMemberId = 0 then
     Exit;
+  if FPlanId = 0 then
+  begin
+    lblStatus.Text := 'Clan jos nema aktivan plan i dodeljenog trenera.';
+    Exit;
+  end;
 
   DB.FDQuery1.Close;
   DB.FDQuery1.SQL.Text :=

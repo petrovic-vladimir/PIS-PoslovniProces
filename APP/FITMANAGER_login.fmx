@@ -72,27 +72,27 @@ object FrmLogin: TFrmLogin
     Text = 'Prijava preko username-a ili email adrese.'
   end
   object btnLogin: TButton
-    Opacity = 0.050000000745058060
-    Position.X = 112.000000000000000000
-    Position.Y = 228.000000000000000000
-    Size.Width = 166.000000000000000000
-    Size.Height = 64.000000000000000000
+    Position.X = 50.000000000000000000
+    Position.Y = 686.000000000000000000
+    Size.Width = 135.000000000000000000
+    Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 2
-    Text = ''
+    Text = 'Prijavi se'
+    TextSettings.Font.Size = 15.000000000000000000
+    TextSettings.Font.Style = [fsBold]
     OnClick = btnLoginClick
   end
   object btnRegister: TButton
-    Position.X = 112.000000000000000000
-    Position.Y = 694.000000000000000000
-    Size.Width = 166.000000000000000000
-    Size.Height = 42.000000000000000000
+    Position.X = 205.000000000000000000
+    Position.Y = 686.000000000000000000
+    Size.Width = 135.000000000000000000
+    Size.Height = 44.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 3
-    Text = 'Kreiraj nalog'
-    TextSettings.Font.Size = 16.000000000000000000
+    Text = 'Registruj se'
+    TextSettings.Font.Size = 15.000000000000000000
     TextSettings.Font.Style = [fsBold]
-    TextSettings.FontColor = claCrimson
     OnClick = btnRegisterClick
   end
 end
