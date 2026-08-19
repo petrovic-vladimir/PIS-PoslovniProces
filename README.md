@@ -246,58 +246,6 @@ Najpotpunija demonstracija dobija se kreiranjem novog člana:
 
 Za demonstraciju kontrole pristupa može se u planu izabrati drugi trener. Posle čuvanja kartica nestaje sa Milanove kontrolne table i postaje vidljiva samo izabranom treneru.
 
-## Statusi u procesu
-
-Tipičan tok statusa termina je:
-
-```text
-Na čekanju → Odobren → U toku → Završen
-```
-
-Alternativni završeci su:
-
-```text
-Na čekanju → Odbijen
-Odobren → Otkazan
-Odobren/Zakazan → Propušten
-```
-
-## Demonstracioni podaci
-
-Baza sadrži približno deset povezanih zapisa u svakoj važnoj celini:
-
-- 10 članova;
-- 10 trenera;
-- 10 programa treninga;
-- 10 individualnih planova;
-- 10 evidencija napretka;
-- termine, treninge, evidencije prisustva i izveštaje.
-
-Podaci nisu samo nezavisni redovi: članovi su povezani sa planovima, planovi sa programima, salama i trenerima, a termini sa realizacijom i izveštajima.
-
-## Struktura projekta
-
-```text
-PIS-PoslovniProces/
-├── APP/                         Delphi/FireMonkey aplikacija
-│   ├── FITMANAGER_APP.dproj     Glavni RAD Studio projekat
-│   ├── dmDatabase.pas           Konekcija, inicijalizacija i migracija baze
-│   ├── FITMANAGER_login.pas     Prijavljivanje
-│   ├── FITMANAGER_register.pas  Registracija člana
-│   ├── FITMANAGER_memberHome.pas
-│   ├── FITMANAGER_trainerHome.pas
-│   ├── FITMANAGER_memberPlanDetail.pas
-│   ├── FITMANAGER_progressUpdate.pas
-│   ├── FITMANAGER_trainingOperations.pas
-│   └── FITMANAGER_adminHome.pas
-├── database/
-│   ├── fitmanager.db            Popunjena SQLite baza
-│   └── create_database.sql      Kompletna šema i demonstracioni podaci
-├── Predlog Rešenja - Upravljanje proizvodnjom.pdf
-├── UPUTSTVO.md
-└── README.md
-```
-
 ## Najčešći problemi
 
 ### Član ne može da zakaže trening
@@ -321,6 +269,3 @@ Drugi trening verovatno zauzima istog trenera ili istu salu u delu izabranog int
 
 Aplikacija će napraviti novu bazu iz `database/create_database.sql`.
 
-## Napomena o lozinkama
-
-Lozinke su u ovoj akademskoj verziji sačuvane kao običan tekst radi jednostavnije demonstracije autentifikacije. U produkcionom sistemu morale bi biti sačuvane pomoću bezbednog algoritma za heširanje lozinki, uz nasumični salt.
